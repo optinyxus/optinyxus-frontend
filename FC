@@ -1,0 +1,59 @@
+optinyxus-suite/
+│
+├── public/
+│   └── optinyxuslogo.png                    # Your logo file
+│
+├── src/
+│   │
+│   ├── components/
+│   │   ├── common/
+│   │   │   └── Navbar.jsx                   # Navbar with profile dropdown
+│   │   │
+│   │   ├── sidebars/
+│   │   │   ├── PriceGenixSidebar.jsx        # PriceGenix sidebar (320px wide)
+│   │   │   ├── MarketEdgeSidebar.jsx        # MarketEdge sidebar
+│   │   │   ├── OptiFlowSidebar.jsx          # OptiFlow sidebar
+│   │   │   └── EngageSyncSidebar.jsx        # EngageSync sidebar
+│   │   │
+│   │   └── dashboard/
+│   │       ├── ProductCard.jsx              # Product card for dashboard home
+│   │       ├── UploadSection.jsx            # File upload component
+│   │       ├── OptimizationOptions.jsx      # Optimization options component
+│   │       ├── ConstraintsSection.jsx       # Constraints component
+│   │       └── ResultsTable.jsx             # Results table with download
+│   │
+│   ├── pages/
+│   │   ├── auth/
+│   │   │   ├── Login.jsx                    # Login page (with logo only)
+│   │   │   └── Register.jsx                 # Register page (with logo only)
+│   │   │
+│   │   └── dashboard/
+│   │       ├── DashboardHome.jsx            # Main dashboard (4 product cards)
+│   │       ├── PriceGenix.jsx               # PriceGenix dashboard
+│   │       ├── MarketEdge.jsx               # MarketEdge dashboard
+│   │       ├── OptiFlow.jsx                 # OptiFlow dashboard
+│   │       └── EngageSync.jsx               # EngageSync dashboard
+│   │
+│   ├── layouts/
+│   │   └── DashboardLayout.jsx              # Dashboard layout wrapper
+│   │
+│   ├── context/
+│   │   └── AuthContext.jsx                  # Authentication context
+│   │
+│   ├── routes/
+│   │   ├── ProtectedRoute.jsx               # Protected route component
+│   │   └── AppRoutes.jsx                    # All app routes
+│   │
+│   ├── utils/
+│   │   └── constants.js                     # Constants (PRODUCTS array)
+│   │
+│   ├── App.jsx                              # Main App component
+│   ├── main.jsx                             # Entry point
+│   └── index.css                            # Global styles (Tailwind)
+│
+├── index.html                               # HTML template
+├── package.json                             # Dependencies
+├── tailwind.config.js                       # Tailwind configuration
+├── postcss.config.js                        # PostCSS configuration
+├── vite.config.js                           # Vite configuration
+└── README.md                                # Project documentation
