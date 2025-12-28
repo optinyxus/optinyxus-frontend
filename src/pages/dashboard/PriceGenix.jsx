@@ -189,6 +189,11 @@ const PriceGenix = () => {
   const [currentPromotionData, setCurrentPromotionData] = useState(mockPromotionData);
   const [currentTopArticlesSummary, setCurrentTopArticlesSummary] = useState(mockTopArticlesSummary);
 
+  const [showArticleLevelConstraints, setShowArticleLevelConstraints] = useState(false);
+  const [stockConstraintsEnabled, setStockConstraintsEnabled] = useState(false);
+  const [discountConstraintsEnabled, setDiscountConstraintsEnabled] = useState(false);
+  const [articleLevelConstraints, setArticleLevelConstraints] = useState({});
+
   const scoringOptions = ['Article', 'Brand', 'Category', 'Store', 'Geography'];
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
@@ -241,6 +246,33 @@ const PriceGenix = () => {
     a.download = `pricegenix-${viewMode === 'history' ? 'history' : 'current'}-results.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
+  };
+
+  const handleArticleLevelConstraintChange = (article, field, value) => {
+    setArticleLevelConstraints((prev) => {
+      const current = prev[article] || {};
+      const nextArticle = { ...current, [field]: value };
+
+      const toNum = (v) => {
+        if (v === '' || v === null || v === undefined) return null;
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+      };
+
+      const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
+      const round2 = (n) => Math.round(n * 100) / 100;
+
+      // Keep values within 0-100, but do NOT force Max > Min.
+      if (field === 'stockMin' || field === 'stockMax' || field === 'discountMin' || field === 'discountMax') {
+        const v = toNum(nextArticle[field]);
+        if (v !== null) nextArticle[field] = String(round2(clamp(v, 0, 100)));
+      }
+
+      return {
+        ...prev,
+        [article]: nextArticle
+      };
+    });
   };
 
   const toggleScoringLevel = (level) => {
@@ -321,6 +353,17 @@ const PriceGenix = () => {
 
     return map;
   };
+
+  const getArticleLevelConstraintColor = (article) => {
+    const c = articleLevelConstraints[article] || {};
+    const stockFilled = (c.stockMin ?? '') !== '' || (c.stockMax ?? '') !== '';
+    const discountFilled = (c.discountMin ?? '') !== '' || (c.discountMax ?? '') !== '';
+    if (stockFilled && discountFilled) return 'bg-orange-50';
+    if (stockFilled) return 'bg-emerald-50';
+    if (discountFilled) return 'bg-red-50';
+    return '';
+  };
+
 
   const renderPopup = () => {
     if (!showPopup) return null;
@@ -891,6 +934,21 @@ const PriceGenix = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <style>{`
+        /* Remove number input spinners (Chrome, Safari, Edge, Opera) */
+        input.no-spinner::-webkit-outer-spin-button,
+        input.no-spinner::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+
+        /* Remove number input spinners (Firefox) */
+        input.no-spinner[type='number'] {
+          -moz-appearance: textfield;
+          appearance: textfield;
+        }
+      `}</style>
+
       {viewMode !== 'history' && (
         <PriceGenixSidebar
           isOpen={sidebarOpen}
@@ -1221,26 +1279,108 @@ const PriceGenix = () => {
                     <h3 className="text-sm sm:text-base font-bold text-gray-900">Optimized Results</h3>
                     <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5">Click row for detailed analysis</p>
                   </div>
-                  <button
-                    onClick={handleDownload}
-                    className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-gray-900 text-white rounded-lg text-[10px] sm:text-xs font-medium hover:bg-gray-800 transition-colors shadow-sm w-full sm:w-auto justify-center"
-                  >
-                    <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                    <span>Export CSV</span>
-                  </button>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
+                    <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                      <div className="flex flex-wrap items-center gap-4 border border-gray-200 rounded-lg px-3 py-2 bg-white">
+                        <span className="text-[10px] sm:text-xs font-bold text-gray-900 whitespace-nowrap">Article Level Constrains</span>
+
+                        <label className="flex items-center gap-2 text-[10px] sm:text-xs text-gray-700 font-medium whitespace-nowrap">
+                          <input
+                            type="checkbox"
+                            checked={stockConstraintsEnabled}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setStockConstraintsEnabled(checked);
+                              if (checked) setShowArticleLevelConstraints(true);
+                              if (!checked) {
+                                setArticleLevelConstraints((prev) => {
+                                  const next = {};
+                                  Object.keys(prev).forEach((k) => {
+                                    next[k] = { ...prev[k], stockMin: '', stockMax: '' };
+                                  });
+                                  return next;
+                                });
+                              }
+                            }}
+                            className="w-4 h-4"
+                          />
+                          Stocks
+                        </label>
+
+                        <label className="flex items-center gap-2 text-[10px] sm:text-xs text-gray-700 font-medium whitespace-nowrap">
+                          <input
+                            type="checkbox"
+                            checked={discountConstraintsEnabled}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setDiscountConstraintsEnabled(checked);
+                              if (checked) setShowArticleLevelConstraints(true);
+                              if (!checked) {
+                                setArticleLevelConstraints((prev) => {
+                                  const next = {};
+                                  Object.keys(prev).forEach((k) => {
+                                    next[k] = { ...prev[k], discountMin: '', discountMax: '' };
+                                  });
+                                  return next;
+                                });
+                              }
+                            }}
+                            className="w-4 h-4"
+                          />
+                          Discounts
+                        </label>
+                      </div>
+
+                      {showArticleLevelConstraints ? (
+                        <button
+                          onClick={() => setShowArticleLevelConstraints(false)}
+                          className="px-3 py-2 bg-gray-900 text-white rounded-lg text-[10px] sm:text-xs font-medium hover:bg-gray-800 transition-colors shadow-sm whitespace-nowrap"
+                        >
+                          Hide Article Level Constraints
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setShowArticleLevelConstraints(true)}
+                          className="px-3 py-2 bg-gray-900 text-white rounded-lg text-[10px] sm:text-xs font-medium hover:bg-gray-800 transition-colors shadow-sm whitespace-nowrap"
+                        >
+                          Show Article Level Constraints
+                        </button>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={handleDownload}
+                      className="flex items-center gap-2 px-3 py-2 bg-gray-900 text-white rounded-lg text-[10px] sm:text-xs font-medium hover:bg-gray-800 transition-colors shadow-sm w-full sm:w-auto justify-center whitespace-nowrap"
+                    >
+                      <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                      <span>Export CSV</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full text-[10px] sm:text-xs min-w-[1400px]">
+                  <table className="w-full text-[10px] sm:text-xs min-w-[1700px]">
                     <thead className="bg-gray-50 border-b-2 border-gray-300">
                       <tr>
                         <th className="sticky left-0 z-10 bg-gray-50 text-left py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 border-r-2 border-gray-300">Article</th>
                         <th className="text-center py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900">Status</th>
                         <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900">Stock</th>
+                        {showArticleLevelConstraints && stockConstraintsEnabled && (
+                          <>
+                            <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Stock Min%</th>
+                            <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Stock Max%</th>
+                          </>
+                        )}
+                        {showArticleLevelConstraints && discountConstraintsEnabled && (
+                          <>
+                            <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Discount Min%</th>
+                            <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Discount Max%</th>
+                          </>
+                        )}
                         <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900">MOP</th>
                         <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900">NLC</th>
-                        <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900">Max Price</th>
-                        <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900">Min Price</th>
+                        <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Max Price</th>
+                        <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Min Price</th>
                         <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 bg-emerald-50">Test Price</th>
                         <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900">Units</th>
                         <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900">Sales</th>
@@ -1257,20 +1397,84 @@ const PriceGenix = () => {
                         <tr
                           key={index}
                           onClick={() => handleRowClick(row)}
-                          className="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer group"
+                          className={`border-b border-gray-100 transition-colors cursor-pointer group ${getArticleLevelConstraintColor(row.article) || "hover:bg-gray-50"}`}
                         >
-                          <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50 py-2 sm:py-2.5 px-2 sm:px-3 font-medium text-gray-900 border-r-2 border-gray-200">{row.article}</td>
+                          <td className={`sticky left-0 z-10 py-2 sm:py-2.5 px-2 sm:px-3 font-medium text-gray-900 border-r-2 border-gray-200 ${getArticleLevelConstraintColor(row.article) || "bg-white group-hover:bg-gray-50"}`}>{row.article}</td>
                           <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-center">
                             {row.status && <span className={`inline-flex px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-medium bg-green-100 text-green-700`}>
                               {row.status}
                             </span>}
                           </td>
                           <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">{row.stock.toLocaleString()}</td>
+                          {showArticleLevelConstraints && stockConstraintsEnabled && (
+                            <>
+                              <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  step="0.01"
+                                  value={articleLevelConstraints[row.article]?.stockMin || ''}
+                                  placeholder="MIN%"
+                                  onClick={(e) => e.stopPropagation()}
+                                  onChange={(e) => handleArticleLevelConstraintChange(row.article, 'stockMin', e.target.value)}
+                                  className="no-spinner w-20 px-2 py-1 border border-gray-300 rounded-md text-center placeholder:text-center text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                                  style={{ textAlign: 'center' }}
+                                />
+                              </td>
+                              <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  step="0.01"
+                                  value={articleLevelConstraints[row.article]?.stockMax || ''}
+                                  placeholder="MAX%"
+                                  onClick={(e) => e.stopPropagation()}
+                                  onChange={(e) => handleArticleLevelConstraintChange(row.article, 'stockMax', e.target.value)}
+                                  className="no-spinner w-20 px-2 py-1 border border-gray-300 rounded-md text-center placeholder:text-center text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                                  style={{ textAlign: 'center' }}
+                                />
+                              </td>
+                            </>
+                          )}
+                          {showArticleLevelConstraints && discountConstraintsEnabled && (
+                            <>
+                              <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  step="0.01"
+                                  value={articleLevelConstraints[row.article]?.discountMin || ''}
+                                  placeholder="MIN%"
+                                  onClick={(e) => e.stopPropagation()}
+                                  onChange={(e) => handleArticleLevelConstraintChange(row.article, 'discountMin', e.target.value)}
+                                  className="no-spinner w-24 px-2 py-1 border border-gray-300 rounded-md text-center placeholder:text-center text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                                  style={{ textAlign: 'center' }}
+                                />
+                              </td>
+                              <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  step="0.01"
+                                  value={articleLevelConstraints[row.article]?.discountMax || ''}
+                                  placeholder="MAX%"
+                                  onClick={(e) => e.stopPropagation()}
+                                  onChange={(e) => handleArticleLevelConstraintChange(row.article, 'discountMax', e.target.value)}
+                                  className="no-spinner w-24 px-2 py-1 border border-gray-300 rounded-md text-center placeholder:text-center text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                                  style={{ textAlign: 'center' }}
+                                />
+                              </td>
+                            </>
+                          )}
                           <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">₹{row.mop.toLocaleString()}</td>
                           <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">₹{row.nlc.toLocaleString()}</td>
                           <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">{row.maxPrice > 0 ? `₹${row.maxPrice.toLocaleString()}` : '-'}</td>
                           <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">{row.minPrice > 0 ? `₹${row.minPrice.toLocaleString()}` : '-'}</td>
-                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right font-bold text-gray-900 bg-emerald-50">
+                          <td className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right font-bold text-gray-900 ${getArticleLevelConstraintColor(row.article) || "bg-emerald-50"}`}>
                             ₹{row.testPrice.toLocaleString()}
                           </td>
                           <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">{row.units.toLocaleString()}</td>
