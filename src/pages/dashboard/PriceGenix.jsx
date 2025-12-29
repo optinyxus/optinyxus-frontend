@@ -358,7 +358,7 @@ const PriceGenix = () => {
     const c = articleLevelConstraints[article] || {};
     const stockFilled = (c.stockMin ?? '') !== '' || (c.stockMax ?? '') !== '';
     const discountFilled = (c.discountMin ?? '') !== '' || (c.discountMax ?? '') !== '';
-    if (stockFilled && discountFilled) return 'bg-purple-50';
+    if (stockFilled && discountFilled) return 'bg-yellow-50';
     if (stockFilled) return 'bg-blue-50';
     if (discountFilled) return 'bg-rose-50';
     return '';
