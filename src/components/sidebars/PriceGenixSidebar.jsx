@@ -174,7 +174,7 @@ const PriceGenixSidebar = ({
           <div className="p-4 border-b border-border-gray">
             <div className="flex items-center gap-2 mb-3">
               <Upload className="w-4 h-4 text-secondary-text" strokeWidth={2} />
-              <h3 className="text-lg font-bold text-primary-text">Data Upload</h3>
+              <h3 className="text-sm font-bold text-primary-text">Data Upload</h3>
             </div>
 
             <div
@@ -231,7 +231,7 @@ const PriceGenixSidebar = ({
             {/* RUN ENGINE BUTTON - centered icon + text together */}
             <button
               onClick={onRunOptimization}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-success text-white rounded-xl font-bold text-lg shadow-premium-lg transition-all duration-200 hover:scale-[1.02] hover:brightness-110 active:scale-100"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-success text-white rounded-xl font-bold text-base shadow-premium-lg transition-all duration-200 hover:scale-[1.02] hover:brightness-110 active:scale-100"
             >
               <Play className="w-4 h-4 fill-white flex-shrink-0" strokeWidth={0} />
               <span className="leading-none">Run Engine</span>
@@ -242,7 +242,7 @@ const PriceGenixSidebar = ({
           <div className="p-4 border-b border-border-gray">
             <div className="flex items-center gap-2 mb-3">
               <Target className="w-4 h-4 text-secondary-text" strokeWidth={2} />
-              <h3 className="text-lg font-bold text-primary-text">Objective</h3>
+              <h3 className="text-sm font-bold text-primary-text">Objective</h3>
             </div>
 
             <div className="space-y-2">
@@ -275,7 +275,7 @@ const PriceGenixSidebar = ({
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Sliders className="w-4 h-4 text-secondary-text" strokeWidth={2} />
-                <h3 className="text-lg font-bold text-primary-text">Global Constraints</h3>
+                <h3 className="text-sm font-bold text-primary-text">Constraints</h3>
               </div>
 
               {constraints.length < constraintTypes.length && (
