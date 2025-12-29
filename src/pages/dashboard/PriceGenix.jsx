@@ -189,7 +189,7 @@ const PriceGenix = () => {
   const [currentPromotionData, setCurrentPromotionData] = useState(mockPromotionData);
   const [currentTopArticlesSummary, setCurrentTopArticlesSummary] = useState(mockTopArticlesSummary);
 
-  const [showArticleLevelConstraints, setShowArticleLevelConstraints] = useState(false);
+  const [hideArticleLevelConstraints, setHideArticleLevelConstraints] = useState(false);
   const [stockConstraintsEnabled, setStockConstraintsEnabled] = useState(false);
   const [discountConstraintsEnabled, setDiscountConstraintsEnabled] = useState(false);
   const [articleLevelConstraints, setArticleLevelConstraints] = useState({});
@@ -262,7 +262,7 @@ const PriceGenix = () => {
       const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
       const round2 = (n) => Math.round(n * 100) / 100;
 
-      // Keep values within 0-100, but do NOT force Max > Min.
+      // Clamp only; do NOT enforce Max > Min.
       if (field === 'stockMin' || field === 'stockMax' || field === 'discountMin' || field === 'discountMax') {
         const v = toNum(nextArticle[field]);
         if (v !== null) nextArticle[field] = String(round2(clamp(v, 0, 100)));
@@ -270,7 +270,7 @@ const PriceGenix = () => {
 
       return {
         ...prev,
-        [article]: nextArticle
+        [article]: nextArticle,
       };
     });
   };
@@ -358,9 +358,9 @@ const PriceGenix = () => {
     const c = articleLevelConstraints[article] || {};
     const stockFilled = (c.stockMin ?? '') !== '' || (c.stockMax ?? '') !== '';
     const discountFilled = (c.discountMin ?? '') !== '' || (c.discountMax ?? '') !== '';
-    if (stockFilled && discountFilled) return 'bg-orange-50';
-    if (stockFilled) return 'bg-emerald-50';
-    if (discountFilled) return 'bg-red-50';
+    if (stockFilled && discountFilled) return 'bg-purple-50';
+    if (stockFilled) return 'bg-blue-50';
+    if (discountFilled) return 'bg-rose-50';
     return '';
   };
 
@@ -1291,17 +1291,8 @@ const PriceGenix = () => {
                             onChange={(e) => {
                               const checked = e.target.checked;
                               setStockConstraintsEnabled(checked);
-                              if (checked) setShowArticleLevelConstraints(true);
-                              if (!checked) {
-                                setArticleLevelConstraints((prev) => {
-                                  const next = {};
-                                  Object.keys(prev).forEach((k) => {
-                                    next[k] = { ...prev[k], stockMin: '', stockMax: '' };
-                                  });
-                                  return next;
-                                });
-                              }
-                            }}
+                              if (checked) /* removed */(true);
+}}
                             className="w-4 h-4"
                           />
                           Stocks
@@ -1314,39 +1305,55 @@ const PriceGenix = () => {
                             onChange={(e) => {
                               const checked = e.target.checked;
                               setDiscountConstraintsEnabled(checked);
-                              if (checked) setShowArticleLevelConstraints(true);
-                              if (!checked) {
-                                setArticleLevelConstraints((prev) => {
-                                  const next = {};
-                                  Object.keys(prev).forEach((k) => {
-                                    next[k] = { ...prev[k], discountMin: '', discountMax: '' };
-                                  });
-                                  return next;
-                                });
-                              }
-                            }}
+                              if (checked) /* removed */(true);
+}}
                             className="w-4 h-4"
                           />
                           Discounts
                         </label>
                       </div>
 
-                      {showArticleLevelConstraints ? (
-                        <button
-                          onClick={() => setShowArticleLevelConstraints(false)}
-                          className="px-3 py-2 bg-gray-900 text-white rounded-lg text-[10px] sm:text-xs font-medium hover:bg-gray-800 transition-colors shadow-sm whitespace-nowrap"
-                        >
-                          Hide Article Level Constraints
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => setShowArticleLevelConstraints(true)}
-                          className="px-3 py-2 bg-gray-900 text-white rounded-lg text-[10px] sm:text-xs font-medium hover:bg-gray-800 transition-colors shadow-sm whitespace-nowrap"
-                        >
-                          Show Article Level Constraints
-                        </button>
-                      )}
-                    </div>
+                      {(() => {
+                          const canToggleHide = stockConstraintsEnabled || discountConstraintsEnabled;
+                          return (
+                            <div className="flex items-center gap-3">
+                              <label
+                                className={
+                                  `flex items-center gap-2 text-[10px] sm:text-xs font-semibold whitespace-nowrap ${
+                                    canToggleHide ? 'text-gray-900 cursor-pointer' : 'text-gray-400 cursor-not-allowed'
+                                  }`
+                                }
+                              >
+                                <input
+                                  type="checkbox"
+                                  disabled={!canToggleHide}
+                                  checked={hideArticleLevelConstraints}
+                                  onChange={(e) => setHideArticleLevelConstraints(e.target.checked)}
+                                  className="w-4 h-4"
+                                />
+                                Hide
+                              </label>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setArticleLevelConstraints((prev) => {
+                                    const next = {};
+                                    Object.keys(prev).forEach((k) => {
+                                      next[k] = { ...prev[k], stockMin: '', stockMax: '', discountMin: '', discountMax: '' };
+                                    });
+                                    return next;
+                                  });
+                                }}
+                                className="px-2 py-2 border border-gray-200 rounded-lg text-[10px] sm:text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+                                title="Reset article constraints"
+                              >
+                                Reset
+                              </button>
+                            </div>
+                          );
+                        })()}
+</div>
 
                     <button
                       onClick={handleDownload}
@@ -1365,13 +1372,13 @@ const PriceGenix = () => {
                         <th className="sticky left-0 z-10 bg-gray-50 text-left py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 border-r-2 border-gray-300">Article</th>
                         <th className="text-center py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900">Status</th>
                         <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900">Stock</th>
-                        {showArticleLevelConstraints && stockConstraintsEnabled && (
+                        {!hideArticleLevelConstraints && stockConstraintsEnabled && (
                           <>
                             <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Stock Min%</th>
                             <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Stock Max%</th>
                           </>
                         )}
-                        {showArticleLevelConstraints && discountConstraintsEnabled && (
+                        {!hideArticleLevelConstraints && discountConstraintsEnabled && (
                           <>
                             <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Discount Min%</th>
                             <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Discount Max%</th>
@@ -1406,7 +1413,7 @@ const PriceGenix = () => {
                             </span>}
                           </td>
                           <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">{row.stock.toLocaleString()}</td>
-                          {showArticleLevelConstraints && stockConstraintsEnabled && (
+                          {!hideArticleLevelConstraints && stockConstraintsEnabled && (
                             <>
                               <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right">
                                 <input
@@ -1414,7 +1421,7 @@ const PriceGenix = () => {
                                   min="0"
                                   max="100"
                                   step="0.01"
-                                  value={articleLevelConstraints[row.article]?.stockMin || ''}
+                                  value={articleLevelConstraints[row.article]?.stockMin ?? ''}
                                   placeholder="MIN%"
                                   onClick={(e) => e.stopPropagation()}
                                   onChange={(e) => handleArticleLevelConstraintChange(row.article, 'stockMin', e.target.value)}
@@ -1428,7 +1435,7 @@ const PriceGenix = () => {
                                   min="0"
                                   max="100"
                                   step="0.01"
-                                  value={articleLevelConstraints[row.article]?.stockMax || ''}
+                                  value={articleLevelConstraints[row.article]?.stockMax ?? ''}
                                   placeholder="MAX%"
                                   onClick={(e) => e.stopPropagation()}
                                   onChange={(e) => handleArticleLevelConstraintChange(row.article, 'stockMax', e.target.value)}
@@ -1438,7 +1445,7 @@ const PriceGenix = () => {
                               </td>
                             </>
                           )}
-                          {showArticleLevelConstraints && discountConstraintsEnabled && (
+                          {!hideArticleLevelConstraints && discountConstraintsEnabled && (
                             <>
                               <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right">
                                 <input
@@ -1446,7 +1453,7 @@ const PriceGenix = () => {
                                   min="0"
                                   max="100"
                                   step="0.01"
-                                  value={articleLevelConstraints[row.article]?.discountMin || ''}
+                                  value={articleLevelConstraints[row.article]?.discountMin ?? ''}
                                   placeholder="MIN%"
                                   onClick={(e) => e.stopPropagation()}
                                   onChange={(e) => handleArticleLevelConstraintChange(row.article, 'discountMin', e.target.value)}
@@ -1460,7 +1467,7 @@ const PriceGenix = () => {
                                   min="0"
                                   max="100"
                                   step="0.01"
-                                  value={articleLevelConstraints[row.article]?.discountMax || ''}
+                                  value={articleLevelConstraints[row.article]?.discountMax ?? ''}
                                   placeholder="MAX%"
                                   onClick={(e) => e.stopPropagation()}
                                   onChange={(e) => handleArticleLevelConstraintChange(row.article, 'discountMax', e.target.value)}
@@ -1474,9 +1481,7 @@ const PriceGenix = () => {
                           <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">₹{row.nlc.toLocaleString()}</td>
                           <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">{row.maxPrice > 0 ? `₹${row.maxPrice.toLocaleString()}` : '-'}</td>
                           <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">{row.minPrice > 0 ? `₹${row.minPrice.toLocaleString()}` : '-'}</td>
-                          <td className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right font-bold text-gray-900 ${getArticleLevelConstraintColor(row.article) || "bg-emerald-50"}`}>
-                            ₹{row.testPrice.toLocaleString()}
-                          </td>
+                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right font-bold text-gray-900 bg-emerald-50">₹{row.testPrice.toLocaleString()}</td>
                           <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">{row.units.toLocaleString()}</td>
                           <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">₹{row.sales.toLocaleString()}</td>
                           <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">₹{row.profit.toLocaleString()}</td>
