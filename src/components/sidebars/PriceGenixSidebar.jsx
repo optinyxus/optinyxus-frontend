@@ -242,7 +242,7 @@ const PriceGenixSidebar = ({
           <div className="p-4 border-b border-border-gray">
             <div className="flex items-center gap-2 mb-3">
               <Target className="w-4 h-4 text-secondary-text" strokeWidth={2} />
-              <h3 className="text-sm font-bold text-primary-text">Objective</h3>
+              <h3 className="text-lg font-bold text-primary-text">Objective</h3>
             </div>
 
             <div className="space-y-2">
@@ -270,12 +270,12 @@ const PriceGenixSidebar = ({
             </div>
           </div>
 
-          {/* Constraints */}
+          {/* Global Constraints */}
           <div className="p-4 border-b border-border-gray">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Sliders className="w-4 h-4 text-secondary-text" strokeWidth={2} />
-                <h3 className="text-sm font-bold text-primary-text">Constraints</h3>
+                <h3 className="text-lg font-bold text-primary-text">Global Constraints</h3>
               </div>
 
               {constraints.length < constraintTypes.length && (
