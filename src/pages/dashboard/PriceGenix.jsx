@@ -1822,7 +1822,7 @@ const PriceGenix = () => {
                   </div>
                   <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2">Ready to Optimize</h3>
                   <p className="text-xs sm:text-sm text-gray-500">
-                    Configure parameters in the sidebar and click "Run Genie" to start optimization
+                    Configure parameters in the sidebar and click "Run Genie"
                   </p>
                 </div>
               )}
