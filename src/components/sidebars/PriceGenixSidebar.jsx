@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   X,
   Upload,
@@ -32,6 +32,7 @@ const PriceGenixSidebar = ({
 }) => {
   const navigate = useNavigate();
   const [isDragging, setIsDragging] = useState(false);
+  const inputRef = useRef(null);
 
   const optimizationOptions = [
     { id: 'sales', label: 'Sales Maximization', icon: TrendingUp },
@@ -51,8 +52,9 @@ const PriceGenixSidebar = ({
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      onFileUpload(file.name);
+      onFileUpload(file);
     }
+    if (inputRef.current) inputRef.current.value = '';
   };
 
   const handleDragOver = (e) => {
@@ -69,12 +71,14 @@ const PriceGenixSidebar = ({
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
     if (file) {
-      onFileUpload(file.name);
+      onFileUpload(file);
     }
+    if (inputRef.current) inputRef.current.value = '';
   };
 
   const handleRemoveFile = () => {
     onFileUpload(null);
+    if (inputRef.current) inputRef.current.value = '';
   };
 
   const handleConstraintChange = (index, field, value) => {
@@ -190,7 +194,8 @@ const PriceGenixSidebar = ({
               }`}
             >
               <input
-                type="file"
+              ref={inputRef}
+              type="file"
                 id="sidebar-file-upload"
                 className="hidden"
                 accept=".csv,.xlsx,.xls"
@@ -202,7 +207,7 @@ const PriceGenixSidebar = ({
                   <div className="flex items-center justify-center gap-1.5 py-1">
                     <CheckCircle2 className="w-3.5 h-3.5 text-chart-green flex-shrink-0" />
                     <span className="text-[10px] text-primary-text font-semibold truncate">
-                      {uploadedFile}
+                      {uploadedFile?.name}
                     </span>
                   </div>
                 ) : (
@@ -234,7 +239,7 @@ const PriceGenixSidebar = ({
               className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-success text-white rounded-xl font-bold text-base shadow-premium-lg transition-all duration-200 hover:scale-[1.02] hover:brightness-110 active:scale-100"
             >
               <Play className="w-4 h-4 fill-white flex-shrink-0" strokeWidth={0} />
-              <span className="leading-none">Run Engine</span>
+              <span className="leading-none">Run Genie</span>
             </button>
           </div>
 

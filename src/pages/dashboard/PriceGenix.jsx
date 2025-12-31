@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../../components/common/Navbar';
 import PriceGenixSidebar from '../../components/sidebars/PriceGenixSidebar';
+import { loadPriceGenixCsv } from '../../utils/pricegenixCsvLoader';
 import { TrendingUp, DollarSign, Percent, Package, Award, Target, BarChart3, Download, X, TrendingDown, Maximize2, ChevronRight, ArrowUpRight, Clock, ChevronLeft, Eye, AlertCircle, Zap, TrendingDown as TrendingDownIcon, ArrowDown, History, Play, Sliders } from 'lucide-react';
 
 // Mock Data
@@ -170,7 +171,8 @@ const mockPastIterations = [
 const PriceGenix = () => {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState('pricing_data_sample.csv');
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [uploadedPreviewRows, setUploadedPreviewRows] = useState([]);
   const [selectedOptimization, setSelectedOptimization] = useState('sales');
   const [constraints, setConstraints] = useState([]);
   const [scoringLevels, setScoringLevels] = useState(['Article']);
@@ -194,11 +196,91 @@ const PriceGenix = () => {
   const [discountConstraintsEnabled, setDiscountConstraintsEnabled] = useState(false);
   const [articleLevelConstraints, setArticleLevelConstraints] = useState({});
 
-  const scoringOptions = ['Article', 'Brand', 'Category', 'Store', 'Geography'];
+  const scoringOptions = ['Article', 'Brand', 'Category', 'Store', 'Geography', 'Channel'];
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
+  const handleFileUpload = async (file) => {
+    if (!file) {
+      setUploadedFile(null);
+      setUploadedPreviewRows([]);
+      setArticleLevelConstraints({});
+
+      // If user removes the file, return to the initial stage (no results view).
+      setHasResults(false);
+      setResultsData([]);
+      setViewMode('current');
+      setSelectedHistoryItem(null);
+      return;
+    }
+
+    setUploadedFile(file);
+
+    try {
+      const { previewRows, articleLevelConstraintsMap } = await loadPriceGenixCsv(file);
+      setUploadedPreviewRows(previewRows);
+
+      // Prefill editable constraints from CSV (if present) so the table + colors reflect uploaded data.
+      const fallbackFromRows = {};
+      (previewRows || []).forEach((r) => {
+        const article = r?.article ?? r?.Article ?? r?.ARTICLE;
+        if (!article) return;
+
+        const stockMin = r?.stockMinPercent ?? r?.StockMinPercent ?? r?.stockMin ?? r?.StockMin;
+        const stockMax = r?.stockMaxPercent ?? r?.StockMaxPercent ?? r?.stockMax ?? r?.StockMax;
+        const discountMin = r?.discountMinPercent ?? r?.DiscountMinPercent ?? r?.discountMin ?? r?.DiscountMin;
+        const discountMax = r?.discountMaxPercent ?? r?.DiscountMaxPercent ?? r?.discountMax ?? r?.DiscountMax;
+
+        fallbackFromRows[article] = {
+          stockMin: stockMin !== null && stockMin !== undefined && stockMin !== '' ? String(stockMin) : '',
+          stockMax: stockMax !== null && stockMax !== undefined && stockMax !== '' ? String(stockMax) : '',
+          discountMin: discountMin !== null && discountMin !== undefined && discountMin !== '' ? String(discountMin) : '',
+          discountMax: discountMax !== null && discountMax !== undefined && discountMax !== '' ? String(discountMax) : ''
+        };
+      });
+
+      setArticleLevelConstraints({
+        ...(fallbackFromRows || {}),
+        ...(articleLevelConstraintsMap || {})
+      });
+    } catch (err) {
+      setUploadedPreviewRows([]);
+      setArticleLevelConstraints({});
+    }
+  };
+
   const handleRunOptimization = () => {
+    // If a file is uploaded, show the same rows in the Optimized Results table.
+    if (uploadedPreviewRows && uploadedPreviewRows.length > 0) {
+      const mapped = uploadedPreviewRows.map((r) => ({
+        article: r.article,
+        status: r.status,
+        stock: r.stock ?? 0,
+        mop: r.mop ?? 0,
+        nlc: r.nlc ?? 0,
+        maxPrice: r.maxPrice ?? 0,
+        minPrice: r.minPrice ?? 0,
+
+        // Keep the existing table shape (other metrics stay empty/0 unless your engine fills them).
+        testPrice: r.mop ?? 0,
+        units: 0,
+        sales: 0,
+        profit: 0,
+        profitability: 0,
+        profitUnit: 0,
+        discount: 0,
+        discountPercent: 0,
+        discountUnit: 0
+      }));
+
+      setResultsData(mapped);
+      setHasResults(true);
+      setViewMode('current');
+      setSelectedHistoryItem(null);
+      return;
+    }
+
+    // Fallback: demo data
     setResultsData(mockOptimizationResults);
     setHasResults(true);
     setViewMode('current');
@@ -954,7 +1036,7 @@ const PriceGenix = () => {
           isOpen={sidebarOpen}
           toggleSidebar={toggleSidebar}
           uploadedFile={uploadedFile}
-          onFileUpload={setUploadedFile}
+          onFileUpload={handleFileUpload}
           selectedOptimization={selectedOptimization}
           onOptimizationChange={setSelectedOptimization}
           constraints={constraints}
@@ -1291,8 +1373,8 @@ const PriceGenix = () => {
                             onChange={(e) => {
                               const checked = e.target.checked;
                               setStockConstraintsEnabled(checked);
-                              if (checked) /* removed */(true);
-}}
+                              if (!checked) setHideArticleLevelConstraints(false);
+                            }}
                             className="w-4 h-4"
                           />
                           Stocks
@@ -1305,8 +1387,8 @@ const PriceGenix = () => {
                             onChange={(e) => {
                               const checked = e.target.checked;
                               setDiscountConstraintsEnabled(checked);
-                              if (checked) /* removed */(true);
-}}
+                              if (!checked) setHideArticleLevelConstraints(false);
+                            }}
                             className="w-4 h-4"
                           />
                           Discounts
@@ -1498,16 +1580,252 @@ const PriceGenix = () => {
               </div>
             </>
           ) : (
-            <div className="bg-white rounded-lg shadow-sm border-2 border-dashed border-gray-300 p-8 sm:p-12 text-center">
-              <div className="max-w-md mx-auto">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
-                  <Target className="w-8 h-8 sm:w-10 sm:h-10 text-gray-400" />
+            <div className={uploadedPreviewRows.length > 0 ? "bg-white rounded-lg shadow-sm border border-gray-200 p-2 sm:p-3" : "bg-white rounded-lg shadow-sm border-2 border-dashed border-gray-300 p-8 sm:p-12 text-center"}>
+              {uploadedPreviewRows.length > 0 ? (
+                <div className="text-left">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
+                    <div>
+                      <h3 className="text-base sm:text-lg font-bold text-gray-900">Uploaded Data</h3>
+                      <p className="text-xs sm:text-sm text-gray-500">{uploadedFile?.name}</p>
+                    </div>
+
+                    <div className="flex items-start justify-start sm:justify-end">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-4 border border-gray-200 rounded-lg px-3 py-2 bg-white">
+                          <span className="text-[10px] sm:text-xs font-bold text-gray-900 whitespace-nowrap">Article Level Constrains</span>
+
+                          <label className="flex items-center gap-2 text-[10px] sm:text-xs text-gray-700 font-medium whitespace-nowrap">
+                            <input
+                              type="checkbox"
+                              checked={stockConstraintsEnabled}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setStockConstraintsEnabled(checked);
+                                if (!checked) setHideArticleLevelConstraints(false);
+                              }}
+                              className="w-4 h-4"
+                            />
+                            Stocks
+                          </label>
+
+                          <label className="flex items-center gap-2 text-[10px] sm:text-xs text-gray-700 font-medium whitespace-nowrap">
+                            <input
+                              type="checkbox"
+                              checked={discountConstraintsEnabled}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setDiscountConstraintsEnabled(checked);
+                                if (!checked) setHideArticleLevelConstraints(false);
+                              }}
+                              className="w-4 h-4"
+                            />
+                            Discounts
+                          </label>
+                        </div>
+
+                        {(() => {
+                          const canToggleHide = stockConstraintsEnabled || discountConstraintsEnabled;
+                          return (
+                            <div className="flex items-center gap-3">
+                              <label
+                                className={`flex items-center gap-2 text-[10px] sm:text-xs font-semibold whitespace-nowrap ${
+                                  canToggleHide ? 'text-gray-900 cursor-pointer' : 'text-gray-400 cursor-not-allowed'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={hideArticleLevelConstraints}
+                                  onChange={(e) => setHideArticleLevelConstraints(e.target.checked)}
+                                  disabled={!canToggleHide}
+                                  className="w-4 h-4"
+                                />
+                                Hide
+                              </label>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setArticleLevelConstraints((prev) => {
+                                    const next = { ...prev };
+                                    Object.keys(next).forEach((k) => {
+                                      next[k] = {
+                                        ...(next[k] || {}),
+                                        stockMin: '',
+                                        stockMax: '',
+                                        discountMin: '',
+                                        discountMax: ''
+                                      };
+                                    });
+                                    return next;
+                                  });
+                                }}
+                                className="px-2.5 py-1 border border-gray-300 rounded-lg text-[10px] sm:text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                              >
+                                Reset
+                              </button>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border border-gray-200 rounded-lg overflow-x-auto bg-white">
+                    <table className="w-full text-[10px] sm:text-xs min-w-[900px] table-auto">
+                      <thead className="bg-gray-50 border-b-2 border-gray-300">
+                        <tr>
+                          <th className="sticky left-0 z-10 bg-gray-50 text-left py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900 border-r border-gray-300">Article</th>
+                          <th className="text-center py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900">Status</th>
+                          <th className="text-right py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900">Stock</th>
+
+                          {!hideArticleLevelConstraints && stockConstraintsEnabled && (
+                            <>
+                              <th className="text-right py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900 whitespace-nowrap">Stock Min%</th>
+                              <th className="text-right py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900 whitespace-nowrap">Stock Max%</th>
+                            </>
+                          )}
+
+                          {!hideArticleLevelConstraints && discountConstraintsEnabled && (
+                            <>
+                              <th className="text-right py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900 whitespace-nowrap">Discount Min%</th>
+                              <th className="text-right py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900 whitespace-nowrap">Discount Max%</th>
+                            </>
+                          )}
+
+                          <th className="text-right py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900">MOP</th>
+                          <th className="text-right py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900">NLC</th>
+                          <th className="text-right py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900 whitespace-nowrap">Max Price</th>
+                          <th className="text-right py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900 whitespace-nowrap">Min Price</th>
+                        </tr>
+                      </thead>
+
+                      <tbody className="bg-white">
+                        {uploadedPreviewRows.map((row, idx) => {
+                          const article = row?.article ?? row?.Article ?? row?.ARTICLE;
+                          const status = row?.status ?? row?.Status ?? row?.STATUS;
+                          const stock = row?.stock ?? row?.Stock ?? row?.STOCK;
+                          const mop = row?.mop ?? row?.MOP;
+                          const nlc = row?.nlc ?? row?.NLC;
+                          const maxPrice = row?.maxPrice ?? row?.MaxPrice ?? row?.['Max Price'];
+                          const minPrice = row?.minPrice ?? row?.MinPrice ?? row?.['Min Price'];
+
+                          return (
+                            <tr
+                              key={idx}
+                              className={`border-b border-gray-100 transition-colors group ${getArticleLevelConstraintColor(article) || 'hover:bg-gray-50'}`}
+                            >
+                              <td className={`sticky left-0 z-10 py-1.5 sm:py-2 px-1 sm:px-1.5 font-medium text-gray-900 border-r border-gray-200 ${getArticleLevelConstraintColor(article) || 'bg-white group-hover:bg-gray-50'}`}>
+                                {article}
+                              </td>
+
+                              <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-center">
+                                {status ? (
+                                  <span className="inline-flex px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-medium bg-green-100 text-green-700">{status}</span>
+                                ) : (
+                                  '-'
+                                )}
+                              </td>
+
+                              <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-right text-gray-600">
+                                {stock?.toLocaleString?.() ?? stock ?? '-'}
+                              </td>
+
+                              {!hideArticleLevelConstraints && stockConstraintsEnabled && (
+                                <>
+                                  <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-right">
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={100}
+                                      step={0.01}
+                                      value={articleLevelConstraints?.[article]?.stockMin ?? ''}
+                                      placeholder="MIN"
+                                      onClick={(e) => e.stopPropagation()}
+                                      onChange={(e) => handleArticleLevelConstraintChange(article, 'stockMin', e.target.value)}
+                                      className="no-spinner w-14 sm:w-16 px-1.5 py-1 border border-gray-300 rounded-md text-center placeholder:text-center text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                                      style={{ textAlign: 'center' }}
+                                    />
+                                  </td>
+                                  <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-right">
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={100}
+                                      step={0.01}
+                                      value={articleLevelConstraints?.[article]?.stockMax ?? ''}
+                                      placeholder="MAX"
+                                      onClick={(e) => e.stopPropagation()}
+                                      onChange={(e) => handleArticleLevelConstraintChange(article, 'stockMax', e.target.value)}
+                                      className="no-spinner w-14 sm:w-16 px-1.5 py-1 border border-gray-300 rounded-md text-center placeholder:text-center text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                                      style={{ textAlign: 'center' }}
+                                    />
+                                  </td>
+                                </>
+                              )}
+
+                              {!hideArticleLevelConstraints && discountConstraintsEnabled && (
+                                <>
+                                  <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-right">
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={100}
+                                      step={0.01}
+                                      value={articleLevelConstraints?.[article]?.discountMin ?? ''}
+                                      placeholder="MIN"
+                                      onClick={(e) => e.stopPropagation()}
+                                      onChange={(e) => handleArticleLevelConstraintChange(article, 'discountMin', e.target.value)}
+                                      className="no-spinner w-14 sm:w-16 px-1.5 py-1 border border-gray-300 rounded-md text-center placeholder:text-center text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                                      style={{ textAlign: 'center' }}
+                                    />
+                                  </td>
+                                  <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-right">
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={100}
+                                      step={0.01}
+                                      value={articleLevelConstraints?.[article]?.discountMax ?? ''}
+                                      placeholder="MAX"
+                                      onClick={(e) => e.stopPropagation()}
+                                      onChange={(e) => handleArticleLevelConstraintChange(article, 'discountMax', e.target.value)}
+                                      className="no-spinner w-14 sm:w-16 px-1.5 py-1 border border-gray-300 rounded-md text-center placeholder:text-center text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                                      style={{ textAlign: 'center' }}
+                                    />
+                                  </td>
+                                </>
+                              )}
+
+                              <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-right text-gray-600">
+                                {mop !== null && mop !== undefined && mop !== '' ? `₹${Number(mop).toLocaleString()}` : '-'}
+                              </td>
+                              <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-right text-gray-600">
+                                {nlc !== null && nlc !== undefined && nlc !== '' ? `₹${Number(nlc).toLocaleString()}` : '-'}
+                              </td>
+                              <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-right text-gray-600">
+                                {maxPrice !== null && maxPrice !== undefined && maxPrice !== '' ? `₹${Number(maxPrice).toLocaleString()}` : '-'}
+                              </td>
+                              <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-right text-gray-600">
+                                {minPrice !== null && minPrice !== undefined && minPrice !== '' ? `₹${Number(minPrice).toLocaleString()}` : '-'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-                <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2">Ready to Optimize</h3>
-                <p className="text-xs sm:text-sm text-gray-500">
-                  Configure parameters in the sidebar and click "Run Engine" to start optimization
-                </p>
-              </div>
+              ) : (
+                <div className="max-w-md mx-auto">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                    <Target className="w-8 h-8 sm:w-10 sm:h-10 text-gray-400" />
+                  </div>
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2">Ready to Optimize</h3>
+                  <p className="text-xs sm:text-sm text-gray-500">
+                    Configure parameters in the sidebar and click "Run Genie" to start optimization
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>
