@@ -247,7 +247,7 @@ const MarketEdgeSidebar = ({
               type="button"
             >
               <Play className="w-4 h-4 fill-white flex-shrink-0" strokeWidth={0} />
-              <span className="leading-none">RUN ENGINE</span>
+              <span className="leading-none">Run Engine</span>
             </button>
           </div>
 

@@ -477,31 +477,19 @@ const MarketEdge = () => {
     if (!showPopup) return null;
 
     if (popupType === 'performance') {
-      const rows = [
-        { key: 'Control', v: currentPerf.control },
-        { key: 'Test', v: currentPerf.test },
-        { key: 'Growth', v: currentPerf.growth },
-        { key: 'Growth %', v: currentPerf.growthPercent }
-      ];
-
       return (
         <div
           className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
           onClick={() => setShowPopup(false)}
         >
           <div
-            className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+            className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-4 sm:p-6 border-b border-gray-200 bg-gray-50 flex-shrink-0">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900">
-                    Control vs Test Comparison
-                  </h3>
-                  <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                    Sales / Spend / ROI / ROAS / mROI
-                  </p>
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900">Performance</h3>
                 </div>
 
                 <button
@@ -516,71 +504,254 @@ const MarketEdge = () => {
 
             <div className="p-4 sm:p-6 bg-white flex-1 overflow-auto">
               <div className="border border-gray-200 rounded-lg overflow-x-auto">
-                <table className="w-full text-xs sm:text-sm min-w-[780px]">
+                <table className="w-full text-xs sm:text-sm min-w-[900px]">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
-                        Scenario
-                      </th>
-                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
-                        Sales
-                      </th>
-                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
-                        Spend
-                      </th>
-                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
-                        ROI
-                      </th>
-                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
-                        ROAS
-                      </th>
-                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
-                        mROI
-                      </th>
+                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300"> </th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">Sales</th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">Spend</th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">ROAS</th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">mROAS</th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">ROI</th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">mROI</th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">Avg. Sale Price</th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">Discount</th>
                     </tr>
                   </thead>
-
                   <tbody className="bg-white">
-                    {rows.map((row, idx) => (
-                      <tr
-                        key={idx}
-                        className="border-b border-gray-200 hover:bg-gray-50 transition-colors"
-                      >
-                        <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">
-                          {row.key}
-                        </td>
+                    <tr className="border-b border-gray-200">
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Control</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 7,07,72,209</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 80,59,555</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">8.78</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">9.085</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">9.01</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">10.76</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 26,132</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 2,138</td>
+                    </tr>
+                    <tr className="border-b border-gray-200">
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Test</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 7,32,77,196</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 80,59,555</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">9.09</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">9.085</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">9.12</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">10.76</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 27,017</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 2,370</td>
+                    </tr>
+                    <tr className="border-b border-gray-200">
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Growth</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 25,04,987</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">-</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">0.31</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">-</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">0.11</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">-</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">885</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">232.00</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Growth %</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">3.54%</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">0.00%</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">3.54%</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">0.00%</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">1.22%</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">0.00%</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">3.39%</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">10.85%</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
-                        <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                          {row.key === 'Growth %'
-                            ? `${formatValue(row.v.sales)}%`
-                            : `₹${formatMoney(row.v.sales)}`}
-                        </td>
+            <div className="p-4 sm:p-6 border-t border-gray-200 bg-gray-50 flex justify-end flex-shrink-0">
+              <button
+                onClick={() => setShowPopup(false)}
+                className="px-4 sm:px-5 py-1.5 sm:py-2 bg-gray-900 text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-800 transition-colors"
+                type="button"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
 
-                        <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                          {row.key === 'Growth %'
-                            ? `${formatValue(row.v.spend)}%`
-                            : `₹${formatMoney(row.v.spend)}`}
-                        </td>
+    if (popupType === 'topChannels') {
+      return (
+        <div
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowPopup(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 sm:p-6 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900">Top Channels Analysis</h3>
+                </div>
 
-                        <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                          {row.key === 'Growth %'
-                            ? `${formatValue(row.v.roi)}%`
-                            : formatValue(row.v.roi)}
-                        </td>
+                <button
+                  onClick={() => setShowPopup(false)}
+                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg hover:bg-gray-200 flex items-center justify-center transition-colors flex-shrink-0"
+                  type="button"
+                >
+                  <X className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
+                </button>
+              </div>
+            </div>
 
-                        <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                          {row.key === 'Growth %'
-                            ? `${formatValue(row.v.roas)}%`
-                            : formatValue(row.v.roas)}
-                        </td>
+            <div className="p-4 sm:p-6 bg-white flex-1 overflow-auto">
+              <div className="border border-gray-200 rounded-lg overflow-x-auto">
+                <table className="w-full text-xs sm:text-sm min-w-[900px]">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">Top Channel</th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">Sales</th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">Spend</th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">ROAS</th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">mROAS</th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">ROI</th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">mROI</th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">Avg. Sale Price</th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">Discount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white">
+                    <tr className="border-b border-gray-200">
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Top Channel</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 2,47,70,273</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 25,79,058</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">9.60</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">9.085</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">9.20</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">10.76</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 27,130</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 2,408</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Top 3 Channels</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 5,86,21,757</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 59,64,071</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">9.83</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">9.085</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">9.12</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">10.68</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 27,068</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 2,463</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
-                        <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                          {row.key === 'Growth %'
-                            ? `${formatValue(row.v.mroi)}%`
-                            : formatValue(row.v.mroi)}
-                        </td>
-                      </tr>
-                    ))}
+            <div className="p-4 sm:p-6 border-t border-gray-200 bg-gray-50 flex justify-end flex-shrink-0">
+              <button
+                onClick={() => setShowPopup(false)}
+                className="px-4 sm:px-5 py-1.5 sm:py-2 bg-gray-900 text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-800 transition-colors"
+                type="button"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (popupType === 'marketingRoi') {
+      return (
+        <div
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowPopup(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 sm:p-6 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900">Marketing ROI</h3>
+                </div>
+
+                <button
+                  onClick={() => setShowPopup(false)}
+                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg hover:bg-gray-200 flex items-center justify-center transition-colors flex-shrink-0"
+                  type="button"
+                >
+                  <X className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-4 sm:p-6 bg-white flex-1 overflow-auto">
+              <div className="border border-gray-200 rounded-lg overflow-x-auto">
+                <table className="w-full text-xs sm:text-sm min-w-[520px]">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300"> </th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">Sales / Spend</th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">Profits / Spend</th>
+                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">Observations</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white">
+                    <tr className="border-b border-gray-200">
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Control</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹11.92</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹0.93</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-left text-gray-700"> </td>
+                    </tr>
+                    <tr className="border-b border-gray-200">
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Test</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹8.77</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹0.52</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-left text-gray-700"> </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Increamental</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹3.47</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">-₹0.17</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-left text-gray-700"> </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mt-6 text-sm font-semibold text-gray-900">Promotion Effectiveness</div>
+              <div className="mt-3 border border-gray-200 rounded-lg overflow-x-auto">
+                <table className="w-full text-xs sm:text-sm min-w-[520px]">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300"> </th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300"> </th>
+                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">Observations</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white">
+                    <tr className="border-b border-gray-200">
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Increamental Sales / Unit</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹10,218.33</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-left text-gray-700"> </td>
+                    </tr>
+                    <tr className="border-b border-gray-200">
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Increamental Profit / Unit</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">-₹511.28</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-left text-gray-700"> </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Increamental Discount / Unit</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹2,940.82</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-left text-gray-700"> </td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -715,7 +886,7 @@ const MarketEdge = () => {
                     MarketEdge AI
                   </div>
                   <div className="text-[10px] sm:text-xs text-gray-500">
-                    Upload + configure in sidebar, then RUN ENGINE.
+                    Upload + configure in sidebar, then Run Engine.
                   </div>
                 </div>
 
@@ -802,7 +973,7 @@ const MarketEdge = () => {
                 Ready to Optimize
               </h3>
               <p className="text-xs sm:text-sm text-gray-500 max-w-md mx-auto">
-                Configure parameters in the sidebar and click RUN ENGINE.
+                Configure parameters in the sidebar and click Run Engine.
               </p>
             </div>
           )}
@@ -997,80 +1168,51 @@ const MarketEdge = () => {
           {/* AFTER RUN */}
           {hasResults && (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 sm:gap-3">
                 <div
                   onClick={() => handleCardClick('performance')}
-                  className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-200 hover:shadow-md hover:border-gray-400 transition-all cursor-pointer group"
+                  className="bg-white rounded-lg p-2 sm:p-2.5 shadow-sm border border-gray-200 hover:shadow-md hover:border-gray-400 transition-all cursor-pointer group"
                 >
-                  <div className="flex items-center justify-between mb-2 sm:mb-3">
-                    <h3 className="text-xs sm:text-sm font-semibold text-gray-900">Performance</h3>
-                    <Maximize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 group-hover:text-gray-900 group-hover:scale-110 transition-all" />
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-[11px] sm:text-xs font-semibold text-gray-900">Performance</h3>
+                    <Maximize2 className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-900 transition-colors" />
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-[10px] sm:text-xs">
-                    <div>
-                      <p className="text-gray-500">Control Sales</p>
-                      <p className="font-semibold text-gray-900">
-                        {(currentPerf.control.sales / 1000000).toFixed(1)}M
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-gray-500">Test Sales</p>
-                      <p className="font-semibold text-gray-900">
-                        {(currentPerf.test.sales / 1000000).toFixed(1)}M
-                      </p>
-                    </div>
+                  <div className="mt-1 text-[10px] sm:text-[11px] text-gray-600">
+                    Sales lift:{' '}
+                    <span className="font-semibold text-gray-900">
+                      {Number(currentPerf?.growthPercent?.sales ?? 0).toFixed(2)}%
+                    </span>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-200">
-                  <div className="flex items-center justify-between mb-2 sm:mb-3">
-                    <h3 className="text-xs sm:text-sm font-semibold text-gray-900">Sales</h3>
-                    <span className="text-[10px] sm:text-xs text-gray-500">Test</span>
+                <div
+                  onClick={() => handleCardClick('topChannels')}
+                  className="bg-white rounded-lg p-2 sm:p-2.5 shadow-sm border border-gray-200 hover:shadow-md hover:border-gray-400 transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-[11px] sm:text-xs font-semibold text-gray-900">
+                      Top Channels Analysis
+                    </h3>
+                    <Maximize2 className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-900 transition-colors" />
                   </div>
-                  <div className="text-sm sm:text-base font-bold text-gray-900">
-                    ₹{formatMoney(currentPerf.test.sales)}
-                  </div>
-                  <div className="text-[10px] sm:text-xs text-gray-500 mt-1">
-                    Growth: {formatValue(currentPerf.growthPercent.sales)}%
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-200">
-                  <div className="flex items-center justify-between mb-2 sm:mb-3">
-                    <h3 className="text-xs sm:text-sm font-semibold text-gray-900">Spend</h3>
-                    <span className="text-[10px] sm:text-xs text-gray-500">Test</span>
-                  </div>
-                  <div className="text-sm sm:text-base font-bold text-gray-900">
-                    ₹{formatMoney(currentPerf.test.spend)}
-                  </div>
-                  <div className="text-[10px] sm:text-xs text-gray-500 mt-1">
-                    Growth: {formatValue(currentPerf.growthPercent.spend)}%
+                  <div className="mt-1 text-[10px] sm:text-[11px] text-gray-600 flex items-center justify-between gap-2">
+                    <span className="whitespace-nowrap">Top channel</span>
+                    <span className="font-semibold text-gray-900 whitespace-nowrap">
+                      ₹{formatMoney(24770273)}
+                    </span>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-200">
-                  <div className="flex items-center justify-between mb-2 sm:mb-3">
-                    <h3 className="text-xs sm:text-sm font-semibold text-gray-900">ROI</h3>
-                    <span className="text-[10px] sm:text-xs text-gray-500">Test</span>
+                <div
+                  onClick={() => handleCardClick('marketingRoi')}
+                  className="bg-white rounded-lg p-2 sm:p-2.5 shadow-sm border border-gray-200 hover:shadow-md hover:border-gray-400 transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-[11px] sm:text-xs font-semibold text-gray-900">Marketing ROI</h3>
+                    <Maximize2 className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-900 transition-colors" />
                   </div>
-                  <div className="text-sm sm:text-base font-bold text-gray-900">
-                    {formatValue(currentPerf.test.roi)}
-                  </div>
-                  <div className="text-[10px] sm:text-xs text-gray-500 mt-1">
-                    Growth: {formatValue(currentPerf.growthPercent.roi)}%
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-200">
-                  <div className="flex items-center justify-between mb-2 sm:mb-3">
-                    <h3 className="text-xs sm:text-sm font-semibold text-gray-900">ROAS</h3>
-                    <span className="text-[10px] sm:text-xs text-gray-500">Test</span>
-                  </div>
-                  <div className="text-sm sm:text-base font-bold text-gray-900">
-                    {formatValue(currentPerf.test.roas)}
-                  </div>
-                  <div className="text-[10px] sm:text-xs text-gray-500 mt-1">
-                    Growth: {formatValue(currentPerf.growthPercent.roas)}%
+                  <div className="mt-1 text-[10px] sm:text-[11px] text-gray-600">
+                    Sales/Spend: <span className="font-semibold text-gray-900">₹11.92 → ₹8.77</span>
                   </div>
                 </div>
               </div>
@@ -1170,10 +1312,10 @@ const MarketEdge = () => {
                           mROAS
                         </th>
                         <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">
-                          Channel ROI (Output)
+                          ROI 
                         </th>
                         <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">
-                          Channel mROI (Output)
+                          mROI
                         </th>
                         <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">
                           Spend Rank
