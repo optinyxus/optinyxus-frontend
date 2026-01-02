@@ -46,6 +46,8 @@ optinyxus-suite/
 │   │
 │   ├── utils/
 │   │   └── constants.js                     # Constants (PRODUCTS array)
+│   │   └── pricegenixCsvLoader.js   
+│   │   └── marketedgeCsvLoader.js  
 │   │
 │   ├── App.jsx                              # Main App component
 │   ├── main.jsx                             # Entry point
