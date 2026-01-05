@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../../components/common/Navbar';
 import MarketEdgeSidebar from '../../components/sidebars/MarketEdgeSidebar';
@@ -15,6 +15,7 @@ import {
   History,
   RotateCcw
 } from 'lucide-react';
+
 
 const mockPerformanceByObjective = {
   sales: {
@@ -34,6 +35,7 @@ const mockPerformanceByObjective = {
     test: { sales: 72500000, spend: 8200000, roi: 9.4, roas: 9.0, mroi: 11.1 }
   }
 };
+
 
 const mockPastIterations = [
   {
@@ -56,47 +58,108 @@ const mockPastIterations = [
   }
 ];
 
+
 const MarketEdge = () => {
   const navigate = useNavigate();
 
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
 
   const [uploadedFile, setUploadedFile] = useState(null);
   const [uploadedPreviewRows, setUploadedPreviewRows] = useState([]);
 
+
   const regionLevels = ['Store Catchment', 'State', 'Zone', 'National'];
   const channels = ['Online', 'Stores', 'Old Stores', 'New Stores'];
 
-  const [selectedRegionLevels, setSelectedRegionLevels] = useState(regionLevels);
-  const [selectedChannels, setSelectedChannels] = useState(channels);
+
+  const [selectedRegionLevels, setSelectedRegionLevels] = useState([]);
+  const [selectedChannels, setSelectedChannels] = useState([]);
+
 
   const [selectedOptimization, setSelectedOptimization] = useState('sales');
+
 
   // Global constraints: Sales, ROI, Spend, mROI
   const [constraints, setConstraints] = useState([]);
 
+
   // Before/After run
   const [hasResults, setHasResults] = useState(false);
   const [resultsData, setResultsData] = useState([]);
+
 
   // History
   const [viewMode, setViewMode] = useState('current'); // current | history
   const [selectedHistoryItem, setSelectedHistoryItem] = useState(null);
   const [isHistoryDropdownOpen, setIsHistoryDropdownOpen] = useState(false);
 
+
   // Popups
   const [showPopup, setShowPopup] = useState(false);
   const [popupType, setPopupType] = useState(null);
 
+
   // Editable per-channel constraints (PriceGenix-like)
   const [channelLevelConstraints, setChannelLevelConstraints] = useState({});
+
 
   // Channel constraints control bar (like PriceGenix "Article Level Constraints")
   const [roasConstraintsEnabled, setRoasConstraintsEnabled] = useState(true);
   const [roiConstraintsEnabled, setRoiConstraintsEnabled] = useState(true);
   const [hideChannelLevelConstraints, setHideChannelLevelConstraints] = useState(false);
 
+
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+
+
+  const STORAGE_KEY = 'marketedge_uploaded_data';
+
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (!saved) return;
+
+
+      if (saved.uploadedFileName) {
+        setUploadedFile({ name: saved.uploadedFileName });
+      }
+
+
+      setUploadedPreviewRows(saved.uploadedPreviewRows || []);
+      setChannelLevelConstraints(saved.channelLevelConstraints || {});
+
+
+      // Safety: never restore results if there is no uploaded file name
+      setHasResults(!!saved.hasResults && !!saved.uploadedFileName);
+      setResultsData(saved.resultsData || []);
+    } catch (e) {}
+  }, []);
+
+
+  useEffect(() => {
+    try {
+      const uploadedFileName = uploadedFile?.name || '';
+      if (!uploadedFileName) return;
+
+
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          uploadedFileName,
+          uploadedPreviewRows: uploadedPreviewRows || [],
+          channelLevelConstraints: channelLevelConstraints || {},
+          hasResults: !!hasResults,
+          resultsData: resultsData || []
+        })
+      );
+    } catch (e) {}
+  }, [uploadedFile, uploadedPreviewRows, channelLevelConstraints, hasResults, resultsData]);
+
 
   const formatMoney = (n) => {
     if (n === '' || n === null || n === undefined) return '-';
@@ -105,6 +168,7 @@ const MarketEdge = () => {
     return num.toLocaleString();
   };
 
+
   const formatValue = (n) => {
     if (n === '' || n === null || n === undefined) return '-';
     const num = Number(n);
@@ -112,12 +176,14 @@ const MarketEdge = () => {
     return num.toLocaleString();
   };
 
+
   const currentPerf = useMemo(() => {
-    const base =
-      mockPerformanceByObjective[selectedOptimization] || mockPerformanceByObjective.sales;
+    const base = mockPerformanceByObjective[selectedOptimization] || mockPerformanceByObjective.sales;
+
 
     const control = base.control;
     const test = base.test;
+
 
     const growth = {
       sales: test.sales - control.sales,
@@ -127,10 +193,12 @@ const MarketEdge = () => {
       mroi: test.mroi - control.mroi
     };
 
+
     const pct = (a, b) => {
       if (!b) return 0;
       return (a / b) * 100;
     };
+
 
     const growthPercent = {
       sales: pct(growth.sales, control.sales),
@@ -140,11 +208,18 @@ const MarketEdge = () => {
       mroi: pct(growth.mroi, control.mroi)
     };
 
+
     return { control, test, growth, growthPercent };
   }, [selectedOptimization]);
 
+
   const handleFileUpload = async (file) => {
     if (!file) {
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch (e) {}
+
+
       setUploadedFile(null);
       setUploadedPreviewRows([]);
       setHasResults(false);
@@ -155,17 +230,21 @@ const MarketEdge = () => {
       return;
     }
 
+
     setUploadedFile(file);
+
 
     try {
       const previewRows = await loadMarketEdgeCsv(file);
       setUploadedPreviewRows(previewRows || []);
+
 
       // Reset view state
       setHasResults(false);
       setResultsData([]);
       setViewMode('current');
       setSelectedHistoryItem(null);
+
 
       // Prefill editable constraints from CSV
       const next = {};
@@ -190,9 +269,15 @@ const MarketEdge = () => {
     }
   };
 
+
   const handleRunOptimization = () => {
-    const baseRows =
-      uploadedPreviewRows && uploadedPreviewRows.length > 0 ? uploadedPreviewRows : [];
+    // Prevent running without uploaded data
+    if (!uploadedFile) return;
+    if (!uploadedPreviewRows || uploadedPreviewRows.length === 0) return;
+
+
+    const baseRows = uploadedPreviewRows;
+
 
     const merged = (baseRows || []).map((r, idx) => {
       const key = r.channel;
@@ -207,6 +292,7 @@ const MarketEdge = () => {
         testRangeMin: r.testRangeMin ?? '',
         testRangeMax: r.testRangeMax ?? '',
 
+
         // AFTER RUN (dummy for now)
         testSpend: '',
         gmv: '',
@@ -218,6 +304,7 @@ const MarketEdge = () => {
         spendScale: ''
       };
     });
+
 
     // Add Portfolio row (dummy)
     const withPortfolio = [
@@ -242,49 +329,65 @@ const MarketEdge = () => {
       }
     ];
 
+
     setResultsData(withPortfolio);
     setHasResults(true);
     setViewMode('current');
     setSelectedHistoryItem(null);
   };
 
+
   const handleReset = () => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (e) {}
+
+
     setConstraints([]);
     setSelectedOptimization('sales');
-    setSelectedRegionLevels(regionLevels);
-    setSelectedChannels(channels);
+    setSelectedRegionLevels([]);
+    setSelectedChannels([]);
+
 
     setUploadedFile(null);
     setUploadedPreviewRows([]);
 
+
     setHasResults(false);
     setResultsData([]);
+
 
     setViewMode('current');
     setSelectedHistoryItem(null);
     setChannelLevelConstraints({});
+
 
     setRoasConstraintsEnabled(true);
     setRoiConstraintsEnabled(true);
     setHideChannelLevelConstraints(false);
   };
 
+
   const handleViewHistory = (iteration) => {
     setSidebarOpen(false);
     setIsHistoryDropdownOpen(false);
     setSelectedHistoryItem(iteration);
 
+
     setHasResults(true);
     setViewMode('history');
+
 
     // Keep structure-first; history view uses whatever current rows exist (or empty)
     setResultsData((prev) => (prev && prev.length > 0 ? prev : []));
   };
 
+
   const handleBackToCurrent = () => {
     setViewMode('current');
     setSelectedHistoryItem(null);
   };
+
 
   const handleDownload = () => {
     const headers = [
@@ -305,6 +408,7 @@ const MarketEdge = () => {
       'Spend Rank',
       'Spend Scale'
     ];
+
 
     const csvContent = [
       headers.join(','),
@@ -332,6 +436,7 @@ const MarketEdge = () => {
       )
     ].join('\n');
 
+
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -341,10 +446,12 @@ const MarketEdge = () => {
     window.URL.revokeObjectURL(url);
   };
 
+
   const handleCardClick = (type) => {
     setPopupType(type);
     setShowPopup(true);
   };
+
 
   const updateChannelConstraint = (channel, field, value) => {
     setChannelLevelConstraints((prev) => ({
@@ -353,15 +460,18 @@ const MarketEdge = () => {
     }));
   };
 
+
   const resetChannelConstraints = () => {
     setChannelLevelConstraints((prev) => {
       const next = { ...(prev || {}) };
+
 
       const keys = new Set([
         ...Object.keys(prev || {}),
         ...(uploadedPreviewRows || []).map((r) => r?.channel).filter(Boolean),
         ...(resultsData || []).map((r) => r?.channel).filter(Boolean)
       ]);
+
 
       keys.forEach((k) => {
         next[k] = {
@@ -373,16 +483,21 @@ const MarketEdge = () => {
         };
       });
 
+
       return next;
     });
   };
 
+
   const canToggleHide = roasConstraintsEnabled || roiConstraintsEnabled;
 
+
+  // ✅ FIX: row highlight must depend ONLY on whether values are filled (not on checkbox toggles)
   const getRowHighlight = (channel) => {
     const c = channelLevelConstraints[channel] || {};
-    const roasFilled = roasConstraintsEnabled && !!(c.channelRoas || c.channelMroas);
-    const roiFilled = roiConstraintsEnabled && !!(c.channelRoi || c.channelMroi);
+    const roasFilled = !!(c.channelRoas || c.channelMroas);
+    const roiFilled = !!(c.channelRoi || c.channelMroi);
+
 
     if (roasFilled && roiFilled) return 'bg-yellow-50';
     if (roasFilled) return 'bg-blue-50';
@@ -390,19 +505,24 @@ const MarketEdge = () => {
     return '';
   };
 
+
   const beforeRunRows = useMemo(() => {
     return uploadedPreviewRows || [];
   }, [uploadedPreviewRows]);
+
 
   const filteredResults = useMemo(() => {
     return resultsData || [];
   }, [resultsData]);
 
+
   const showRoasCols = roasConstraintsEnabled && !hideChannelLevelConstraints;
   const showRoiCols = roiConstraintsEnabled && !hideChannelLevelConstraints;
 
+
   const beforeRunColSpan = 2 + (showRoasCols ? 2 : 0) + (showRoiCols ? 2 : 0) + 2; // + TestRangeMin/Max
   const afterRunColSpan = 2 + (showRoasCols ? 2 : 0) + (showRoiCols ? 2 : 0) + 10; // + outputs
+
 
   const renderChannelConstraintControlBar = () => {
     return (
@@ -412,6 +532,7 @@ const MarketEdge = () => {
             <span className="text-[10px] sm:text-xs font-bold text-gray-900 whitespace-nowrap">
               Channel Level Constraints
             </span>
+
 
             <label className="flex items-center gap-2 text-[10px] sm:text-xs text-gray-700 font-medium whitespace-nowrap">
               <input
@@ -427,6 +548,7 @@ const MarketEdge = () => {
               ROAS
             </label>
 
+
             <label className="flex items-center gap-2 text-[10px] sm:text-xs text-gray-700 font-medium whitespace-nowrap">
               <input
                 type="checkbox"
@@ -441,6 +563,7 @@ const MarketEdge = () => {
               ROI
             </label>
           </div>
+
 
           <div className="flex items-center gap-3">
             <label
@@ -458,6 +581,7 @@ const MarketEdge = () => {
               Hide
             </label>
 
+
             <button
               type="button"
               onClick={resetChannelConstraints}
@@ -473,8 +597,10 @@ const MarketEdge = () => {
     );
   };
 
+
   const renderPopup = () => {
     if (!showPopup) return null;
+
 
     if (popupType === 'performance') {
       return (
@@ -492,6 +618,7 @@ const MarketEdge = () => {
                   <h3 className="text-lg sm:text-xl font-semibold text-gray-900">Performance</h3>
                 </div>
 
+
                 <button
                   onClick={() => setShowPopup(false)}
                   className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg hover:bg-gray-200 flex items-center justify-center transition-colors flex-shrink-0"
@@ -502,71 +629,163 @@ const MarketEdge = () => {
               </div>
             </div>
 
+
             <div className="p-4 sm:p-6 bg-white flex-1 overflow-auto">
               <div className="border border-gray-200 rounded-lg overflow-x-auto">
                 <table className="w-full text-xs sm:text-sm min-w-[900px]">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300"> </th>
-                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">Sales</th>
-                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">Spend</th>
-                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">ROAS</th>
-                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">mROAS</th>
-                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">ROI</th>
-                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">mROI</th>
-                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">Avg. Sale Price</th>
-                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">Discount</th>
+                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
+                        {' '}
+                      </th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
+                        Sales
+                      </th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
+                        Spend
+                      </th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
+                        ROAS
+                      </th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
+                        mROAS
+                      </th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
+                        ROI
+                      </th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
+                        mROI
+                      </th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
+                        Avg. Sale Price
+                      </th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
+                        Discount
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white">
                     <tr className="border-b border-gray-200">
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Control</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 7,07,72,209</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 80,59,555</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">8.78</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">9.085</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">9.01</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">10.76</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 26,132</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 2,138</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">
+                        Control
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        ₹ 7,07,72,209
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        ₹ 80,59,555
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        8.78
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        9.085
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        9.01
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        10.76
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        ₹ 26,132
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        ₹ 2,138
+                      </td>
                     </tr>
                     <tr className="border-b border-gray-200">
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Test</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 7,32,77,196</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 80,59,555</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">9.09</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">9.085</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">9.12</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">10.76</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 27,017</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 2,370</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">
+                        Test
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        ₹ 7,32,77,196
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        ₹ 80,59,555
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        9.09
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        9.085
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        9.12
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        10.76
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        ₹ 27,017
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        ₹ 2,370
+                      </td>
                     </tr>
                     <tr className="border-b border-gray-200">
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Growth</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 25,04,987</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">-</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">0.31</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">-</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">0.11</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">-</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">885</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">232.00</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">
+                        Growth
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        ₹ 25,04,987
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        -
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        0.31
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        -
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        0.11
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        -
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        885
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        232.00
+                      </td>
                     </tr>
                     <tr>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Growth %</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">3.54%</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">0.00%</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">3.54%</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">0.00%</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">1.22%</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">0.00%</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">3.39%</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">10.85%</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">
+                        Growth %
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        3.54%
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        0.00%
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        3.54%
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        0.00%
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        1.22%
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        0.00%
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        3.39%
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        10.85%
+                      </td>
                     </tr>
                   </tbody>
                 </table>
               </div>
             </div>
+
 
             <div className="p-4 sm:p-6 border-t border-gray-200 bg-gray-50 flex justify-end flex-shrink-0">
               <button
@@ -581,6 +800,7 @@ const MarketEdge = () => {
         </div>
       );
     }
+
 
     if (popupType === 'topChannels') {
       return (
@@ -595,8 +815,11 @@ const MarketEdge = () => {
             <div className="p-4 sm:p-6 border-b border-gray-200 bg-gray-50 flex-shrink-0">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900">Top Channels Analysis</h3>
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900">
+                    Top Channels Analysis
+                  </h3>
                 </div>
+
 
                 <button
                   onClick={() => setShowPopup(false)}
@@ -608,49 +831,105 @@ const MarketEdge = () => {
               </div>
             </div>
 
+
             <div className="p-4 sm:p-6 bg-white flex-1 overflow-auto">
               <div className="border border-gray-200 rounded-lg overflow-x-auto">
                 <table className="w-full text-xs sm:text-sm min-w-[900px]">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">Top Channel</th>
-                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">Sales</th>
-                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">Spend</th>
-                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">ROAS</th>
-                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">mROAS</th>
-                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">ROI</th>
-                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">mROI</th>
-                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">Avg. Sale Price</th>
-                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">Discount</th>
+                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
+                        Top Channel
+                      </th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
+                        Sales
+                      </th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
+                        Spend
+                      </th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
+                        ROAS
+                      </th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
+                        mROAS
+                      </th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
+                        ROI
+                      </th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
+                        mROI
+                      </th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
+                        Avg. Sale Price
+                      </th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
+                        Discount
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white">
                     <tr className="border-b border-gray-200">
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Top Channel</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 2,47,70,273</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 25,79,058</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">9.60</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">9.085</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">9.20</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">10.76</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 27,130</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 2,408</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">
+                        Top Channel
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        ₹ 2,47,70,273
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        ₹ 25,79,058
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        9.60
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        9.085
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        9.20
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        10.76
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        ₹ 27,130
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        ₹ 2,408
+                      </td>
                     </tr>
                     <tr>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Top 3 Channels</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 5,86,21,757</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 59,64,071</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">9.83</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">9.085</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">9.12</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">10.68</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 27,068</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹ 2,463</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">
+                        Top 3 Channels
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        ₹ 5,86,21,757
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        ₹ 59,64,071
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        9.83
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        9.085
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        9.12
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        10.68
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        ₹ 27,068
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        ₹ 2,463
+                      </td>
                     </tr>
                   </tbody>
                 </table>
               </div>
             </div>
+
 
             <div className="p-4 sm:p-6 border-t border-gray-200 bg-gray-50 flex justify-end flex-shrink-0">
               <button
@@ -665,6 +944,7 @@ const MarketEdge = () => {
         </div>
       );
     }
+
 
     if (popupType === 'marketingRoi') {
       return (
@@ -679,8 +959,11 @@ const MarketEdge = () => {
             <div className="p-4 sm:p-6 border-b border-gray-200 bg-gray-50 flex-shrink-0">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900">Marketing ROI</h3>
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900">
+                    Marketing ROI
+                  </h3>
                 </div>
+
 
                 <button
                   onClick={() => setShowPopup(false)}
@@ -692,70 +975,129 @@ const MarketEdge = () => {
               </div>
             </div>
 
+
             <div className="p-4 sm:p-6 bg-white flex-1 overflow-auto">
               <div className="border border-gray-200 rounded-lg overflow-x-auto">
                 <table className="w-full text-xs sm:text-sm min-w-[520px]">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300"> </th>
-                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">Sales / Spend</th>
-                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">Profits / Spend</th>
-                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">Observations</th>
+                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
+                        {' '}
+                      </th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
+                        Sales / Spend
+                      </th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
+                        Profits / Spend
+                      </th>
+                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
+                        Observations
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white">
                     <tr className="border-b border-gray-200">
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Control</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹11.92</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹0.93</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-left text-gray-700"> </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">
+                        Control
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        ₹11.92
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        ₹0.93
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-left text-gray-700">
+                        {' '}
+                      </td>
                     </tr>
                     <tr className="border-b border-gray-200">
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Test</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹8.77</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹0.52</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-left text-gray-700"> </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">
+                        Test
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        ₹8.77
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        ₹0.52
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-left text-gray-700">
+                        {' '}
+                      </td>
                     </tr>
                     <tr>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Increamental</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹3.47</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">-₹0.17</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-left text-gray-700"> </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">
+                        Increamental
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        ₹3.47
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        -₹0.17
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-left text-gray-700">
+                        {' '}
+                      </td>
                     </tr>
                   </tbody>
                 </table>
               </div>
+
 
               <div className="mt-6 text-sm font-semibold text-gray-900">Promotion Effectiveness</div>
               <div className="mt-3 border border-gray-200 rounded-lg overflow-x-auto">
                 <table className="w-full text-xs sm:text-sm min-w-[520px]">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300"> </th>
-                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300"> </th>
-                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">Observations</th>
+                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
+                        {' '}
+                      </th>
+                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
+                        {' '}
+                      </th>
+                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
+                        Observations
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white">
                     <tr className="border-b border-gray-200">
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Increamental Sales / Unit</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹10,218.33</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-left text-gray-700"> </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">
+                        Increamental Sales / Unit
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        ₹10,218.33
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-left text-gray-700">
+                        {' '}
+                      </td>
                     </tr>
                     <tr className="border-b border-gray-200">
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Increamental Profit / Unit</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">-₹511.28</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-left text-gray-700"> </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">
+                        Increamental Profit / Unit
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        -₹511.28
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-left text-gray-700">
+                        {' '}
+                      </td>
                     </tr>
                     <tr>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Increamental Discount / Unit</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹2,940.82</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-left text-gray-700"> </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">
+                        Increamental Discount / Unit
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        ₹2,940.82
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-left text-gray-700">
+                        {' '}
+                      </td>
                     </tr>
                   </tbody>
                 </table>
               </div>
             </div>
+
 
             <div className="p-4 sm:p-6 border-t border-gray-200 bg-gray-50 flex justify-end flex-shrink-0">
               <button
@@ -771,8 +1113,61 @@ const MarketEdge = () => {
       );
     }
 
+
+    if (popupType === 'analysis') {
+      return (
+        <div
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowPopup(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 sm:p-6 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900">Analysis</h3>
+                </div>
+
+
+                <button
+                  onClick={() => setShowPopup(false)}
+                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg hover:bg-gray-200 flex items-center justify-center transition-colors flex-shrink-0"
+                  type="button"
+                >
+                  <X className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
+                </button>
+              </div>
+            </div>
+
+
+            <div className="p-4 sm:p-6 bg-white flex-1 overflow-auto">
+              <div className="text-sm font-semibold text-gray-900">Charts</div>
+              <div className="mt-2 text-xs text-gray-600">
+                Bars, Pies, Scatters (To be implemented).
+              </div>
+            </div>
+
+
+            <div className="p-4 sm:p-6 border-t border-gray-200 bg-gray-50 flex justify-end flex-shrink-0">
+              <button
+                onClick={() => setShowPopup(false)}
+                className="px-4 sm:px-5 py-1.5 sm:py-2 bg-gray-900 text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-800 transition-colors"
+                type="button"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+
     return null;
   };
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -787,6 +1182,7 @@ const MarketEdge = () => {
           appearance: textfield;
         }
       `}</style>
+
 
       <MarketEdgeSidebar
         isOpen={sidebarOpen}
@@ -807,12 +1203,14 @@ const MarketEdge = () => {
         onReset={handleReset}
       />
 
+
       <Navbar
         toggleSidebar={toggleSidebar}
         showMenuButton={true}
         currentProduct="marketedge"
         onLogoClick={() => navigate('/dashboard')}
       />
+
 
       <div
         className={`pt-16 transition-all duration-300 ${
@@ -831,11 +1229,13 @@ const MarketEdge = () => {
                 Back
               </button>
 
+
               <div className="flex flex-col lg:flex-row gap-3 lg:gap-4 pr-16">
                 <div className="flex items-start gap-3 lg:w-[320px] min-w-0">
                   <div className="w-9 h-9 bg-gray-900 rounded-lg flex items-center justify-center flex-shrink-0">
                     <Eye className="w-5 h-5 text-white" strokeWidth={2} />
                   </div>
+
 
                   <div className="min-w-0">
                     <h3 className="text-xs sm:text-sm font-bold text-gray-900 truncate">
@@ -860,10 +1260,12 @@ const MarketEdge = () => {
                   </div>
                 </div>
 
+
                 <div className="flex-1">
                   <div className="text-[10px] sm:text-xs text-gray-500">
                     <span className="font-semibold text-gray-700">Constraints</span>
                   </div>
+
 
                   <div className="mt-2 border border-gray-200 rounded-lg overflow-hidden">
                     <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 text-[10px] sm:text-xs font-medium text-gray-700">
@@ -878,25 +1280,75 @@ const MarketEdge = () => {
             </div>
           )}
 
+
           {viewMode === 'current' && (
             <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-200">
               <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 sm:gap-4">
-                <div className="flex flex-col gap-2 flex-1">
-                  <div className="text-xs sm:text-sm font-semibold text-gray-900">
-                    MarketEdge AI
+                <div className="flex flex-col gap-3 flex-1">
+                  <div>
+                    <div className="text-xs sm:text-sm font-semibold text-gray-900">Geography</div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {regionLevels.map((lvl) => {
+                        const active = selectedRegionLevels.includes(lvl);
+                        return (
+                          <button
+                            key={lvl}
+                            type="button"
+                            onClick={() =>
+                              setSelectedRegionLevels((prev) =>
+                                prev.includes(lvl) ? prev.filter((x) => x !== lvl) : [...prev, lvl]
+                              )
+                            }
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-all ${
+                              active
+                                ? 'bg-gray-900 text-white border-gray-900'
+                                : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400'
+                            }`}
+                          >
+                            {lvl}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div className="text-[10px] sm:text-xs text-gray-500">
-                    Upload + configure in sidebar, then Run Engine.
+
+
+                  <div>
+                    <div className="text-xs sm:text-sm font-semibold text-gray-900">Channels</div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {channels.map((ch) => {
+                        const active = selectedChannels.includes(ch);
+                        return (
+                          <button
+                            key={ch}
+                            type="button"
+                            onClick={() =>
+                              setSelectedChannels((prev) =>
+                                prev.includes(ch) ? prev.filter((x) => x !== ch) : [...prev, ch]
+                              )
+                            }
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-all ${
+                              active
+                                ? 'bg-gray-900 text-white border-gray-900'
+                                : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400'
+                            }`}
+                          >
+                            {ch}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
 
+
                 <div className="hidden lg:block w-px h-16 bg-gray-300 self-stretch" />
+
 
                 <div className="flex flex-col gap-2 lg:w-auto lg:min-w-[280px]">
                   <label className="text-xs sm:text-sm font-semibold text-gray-900">
                     Past Iterations
                   </label>
-
                   <div className="relative">
                     <button
                       onClick={() => setIsHistoryDropdownOpen(!isHistoryDropdownOpen)}
@@ -912,6 +1364,7 @@ const MarketEdge = () => {
                       />
                     </button>
 
+
                     {isHistoryDropdownOpen && (
                       <>
                         <div
@@ -919,16 +1372,16 @@ const MarketEdge = () => {
                           onClick={() => setIsHistoryDropdownOpen(false)}
                         />
 
+
                         <div className="absolute right-0 mt-2 w-full sm:w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
                           <div className="p-2 max-h-80 overflow-y-auto">
                             <div className="px-3 py-2 border-b border-gray-200">
-                              <p className="text-xs font-semibold text-gray-900">
-                                Historical Runs
-                              </p>
+                              <p className="text-xs font-semibold text-gray-900">Historical Runs</p>
                               <p className="text-[10px] text-gray-500 mt-0.5">
                                 Click to view past results
                               </p>
                             </div>
+
 
                             {mockPastIterations.map((iteration) => (
                               <button
@@ -964,33 +1417,33 @@ const MarketEdge = () => {
             </div>
           )}
 
-          {!uploadedFile && (
+
+          {!uploadedFile && !hasResults && (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 sm:p-12 text-center">
               <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
                 <Target className="w-8 h-8 sm:w-10 sm:h-10 text-gray-400" />
               </div>
-              <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2">
-                Ready to Optimize
-              </h3>
+              <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2">Ready to Optimize</h3>
               <p className="text-xs sm:text-sm text-gray-500 max-w-md mx-auto">
                 Configure parameters in the sidebar and click Run Engine.
               </p>
             </div>
           )}
 
-          {/* BEFORE RUN: after Data Upload -> show constraint controls + inner table */}
+
+          {/* BEFORE RUN */}
           {uploadedFile && !hasResults && (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
               <div className="p-3 sm:p-4 border-b border-gray-200 bg-gray-50 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
                 <div>
                   <h3 className="text-sm sm:text-base font-bold text-gray-900">Data Upload</h3>
-                  <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5">
-                    {uploadedFile?.name}
-                  </p>
+                  <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5">{uploadedFile?.name}</p>
                 </div>
+
 
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
                   {renderChannelConstraintControlBar()}
+
 
                   <button
                     onClick={handleDownload}
@@ -1002,6 +1455,7 @@ const MarketEdge = () => {
                   </button>
                 </div>
               </div>
+
 
               {!hideChannelLevelConstraints && (
                 <div className="px-3 sm:px-4 py-2 bg-white border-b border-gray-200 text-[10px] sm:text-xs text-gray-600 flex flex-wrap gap-3">
@@ -1020,6 +1474,7 @@ const MarketEdge = () => {
                 </div>
               )}
 
+
               <div className="border border-gray-200 rounded-lg overflow-x-auto bg-white m-3 sm:m-4">
                 <table className="w-full text-[10px] sm:text-xs min-w-[980px] table-auto">
                   <thead className="bg-gray-50 border-b-2 border-gray-300">
@@ -1028,9 +1483,11 @@ const MarketEdge = () => {
                         Channel
                       </th>
 
+
                       <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 border-r border-gray-300 whitespace-nowrap">
                         Funds Available
                       </th>
+
 
                       {showRoasCols && (
                         <>
@@ -1043,6 +1500,7 @@ const MarketEdge = () => {
                         </>
                       )}
 
+
                       {showRoiCols && (
                         <>
                           <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">
@@ -1054,6 +1512,7 @@ const MarketEdge = () => {
                         </>
                       )}
 
+
                       <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">
                         Test Range Min.
                       </th>
@@ -1062,6 +1521,7 @@ const MarketEdge = () => {
                       </th>
                     </tr>
                   </thead>
+
 
                   <tbody className="bg-white">
                     {beforeRunRows?.length === 0 ? (
@@ -1089,11 +1549,13 @@ const MarketEdge = () => {
                               {row.channel || '-'}
                             </td>
 
+
                             <td
                               className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 border-r border-gray-200 whitespace-nowrap ${rowBg}`}
                             >
                               {row.fundsAvailable || '-'}
                             </td>
+
 
                             {showRoasCols && (
                               <>
@@ -1108,6 +1570,7 @@ const MarketEdge = () => {
                                   />
                                 </td>
 
+
                                 <td className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right ${rowBg}`}>
                                   <input
                                     className="no-spinner w-24 sm:w-28 text-right px-2 py-1 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 whitespace-nowrap"
@@ -1121,6 +1584,7 @@ const MarketEdge = () => {
                               </>
                             )}
 
+
                             {showRoiCols && (
                               <>
                                 <td className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right ${rowBg}`}>
@@ -1133,6 +1597,7 @@ const MarketEdge = () => {
                                     placeholder="-"
                                   />
                                 </td>
+
 
                                 <td
                                   className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right border-r border-gray-200 ${rowBg}`}
@@ -1149,10 +1614,15 @@ const MarketEdge = () => {
                               </>
                             )}
 
-                            <td className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}>
+
+                            <td
+                              className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}
+                            >
                               {row.testRangeMin ?? '-'}
                             </td>
-                            <td className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}>
+                            <td
+                              className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}
+                            >
                               {row.testRangeMax ?? '-'}
                             </td>
                           </tr>
@@ -1165,16 +1635,19 @@ const MarketEdge = () => {
             </div>
           )}
 
+
           {/* AFTER RUN */}
           {hasResults && (
             <>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 sm:gap-3">
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-2 sm:gap-3">
                 <div
                   onClick={() => handleCardClick('performance')}
                   className="bg-white rounded-lg p-2 sm:p-2.5 shadow-sm border border-gray-200 hover:shadow-md hover:border-gray-400 transition-all cursor-pointer group"
                 >
                   <div className="flex items-center justify-between">
-                    <h3 className="text-[11px] sm:text-xs font-semibold text-gray-900">Performance</h3>
+                    <h3 className="text-[11px] sm:text-xs font-semibold text-gray-900">
+                      Performance
+                    </h3>
                     <Maximize2 className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-900 transition-colors" />
                   </div>
                   <div className="mt-1 text-[10px] sm:text-[11px] text-gray-600">
@@ -1184,6 +1657,7 @@ const MarketEdge = () => {
                     </span>
                   </div>
                 </div>
+
 
                 <div
                   onClick={() => handleCardClick('topChannels')}
@@ -1203,19 +1677,39 @@ const MarketEdge = () => {
                   </div>
                 </div>
 
+
                 <div
                   onClick={() => handleCardClick('marketingRoi')}
                   className="bg-white rounded-lg p-2 sm:p-2.5 shadow-sm border border-gray-200 hover:shadow-md hover:border-gray-400 transition-all cursor-pointer group"
                 >
                   <div className="flex items-center justify-between">
-                    <h3 className="text-[11px] sm:text-xs font-semibold text-gray-900">Marketing ROI</h3>
+                    <h3 className="text-[11px] sm:text-xs font-semibold text-gray-900">
+                      Marketing ROI
+                    </h3>
                     <Maximize2 className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-900 transition-colors" />
                   </div>
                   <div className="mt-1 text-[10px] sm:text-[11px] text-gray-600">
-                    Sales/Spend: <span className="font-semibold text-gray-900">₹11.92 → ₹8.77</span>
+                    Sales/Spend:{' '}
+                    <span className="font-semibold text-gray-900">₹11.92 → ₹8.77</span>
+                  </div>
+                </div>
+
+
+                <div
+                  onClick={() => handleCardClick('analysis')}
+                  className="bg-white rounded-lg p-2 sm:p-2.5 shadow-sm border border-gray-200 hover:shadow-md hover:border-gray-400 transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-[11px] sm:text-xs font-semibold text-gray-900">Analysis</h3>
+                    <Maximize2 className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-900 transition-colors" />
+                  </div>
+                  <div className="mt-1 text-[10px] sm:text-[11px] text-gray-600">
+                    Charts:{' '}
+                    <span className="font-semibold text-gray-900">Bars, Pies, Scatters</span>
                   </div>
                 </div>
               </div>
+
 
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                 <div className="p-3 sm:p-4 border-b border-gray-200 bg-gray-50 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
@@ -1228,8 +1722,10 @@ const MarketEdge = () => {
                     </p>
                   </div>
 
+
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
                     {renderChannelConstraintControlBar()}
+
 
                     <button
                       onClick={handleDownload}
@@ -1241,6 +1737,7 @@ const MarketEdge = () => {
                     </button>
                   </div>
                 </div>
+
 
                 {!hideChannelLevelConstraints && (
                   <div className="px-3 sm:px-4 py-2 bg-white border-b border-gray-200 text-[10px] sm:text-xs text-gray-600 flex flex-wrap gap-3">
@@ -1259,6 +1756,7 @@ const MarketEdge = () => {
                   </div>
                 )}
 
+
                 <div className="border border-gray-200 rounded-lg overflow-x-auto bg-white m-3 sm:m-4">
                   <table className="w-full text-[10px] sm:text-xs min-w-[1400px] table-auto">
                     <thead className="bg-gray-50 border-b-2 border-gray-300">
@@ -1267,9 +1765,11 @@ const MarketEdge = () => {
                           Channel
                         </th>
 
+
                         <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 border-r border-gray-300 whitespace-nowrap">
                           Funds Available
                         </th>
+
 
                         {showRoasCols && (
                           <>
@@ -1282,6 +1782,7 @@ const MarketEdge = () => {
                           </>
                         )}
 
+
                         {showRoiCols && (
                           <>
                             <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">
@@ -1292,6 +1793,7 @@ const MarketEdge = () => {
                             </th>
                           </>
                         )}
+
 
                         <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">
                           Test Range Min.
@@ -1312,7 +1814,7 @@ const MarketEdge = () => {
                           mROAS
                         </th>
                         <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">
-                          ROI 
+                          ROI
                         </th>
                         <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">
                           mROI
@@ -1325,6 +1827,7 @@ const MarketEdge = () => {
                         </th>
                       </tr>
                     </thead>
+
 
                     <tbody className="bg-white">
                       {filteredResults?.length === 0 ? (
@@ -1340,6 +1843,7 @@ const MarketEdge = () => {
                         filteredResults.map((row, idx) => {
                           const rowBg = getRowHighlight(row.channel);
 
+
                           return (
                             <tr
                               key={idx}
@@ -1353,11 +1857,13 @@ const MarketEdge = () => {
                                 {row.channel || '-'}
                               </td>
 
+
                               <td
                                 className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 border-r border-gray-200 whitespace-nowrap ${rowBg}`}
                               >
                                 {row.fundsAvailable || '-'}
                               </td>
+
 
                               {showRoasCols && (
                                 <>
@@ -1384,6 +1890,7 @@ const MarketEdge = () => {
                                 </>
                               )}
 
+
                               {showRoiCols && (
                                 <>
                                   <td className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right ${rowBg}`}>
@@ -1397,7 +1904,10 @@ const MarketEdge = () => {
                                     />
                                   </td>
 
-                                  <td className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right border-r border-gray-200 ${rowBg}`}>
+
+                                  <td
+                                    className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right border-r border-gray-200 ${rowBg}`}
+                                  >
                                     <input
                                       className="no-spinner w-24 sm:w-28 text-right px-2 py-1 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 whitespace-nowrap"
                                       value={channelLevelConstraints[row.channel]?.channelMroi ?? ''}
@@ -1410,34 +1920,55 @@ const MarketEdge = () => {
                                 </>
                               )}
 
-                              <td className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}>
+
+                              <td
+                                className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}
+                              >
                                 {row.testRangeMin ?? '-'}
                               </td>
-                              <td className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}>
+                              <td
+                                className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}
+                              >
                                 {row.testRangeMax ?? '-'}
                               </td>
-                              <td className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}>
+                              <td
+                                className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}
+                              >
                                 {row.testSpend ?? '-'}
                               </td>
-                              <td className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}>
+                              <td
+                                className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}
+                              >
                                 {row.gmv ?? '-'}
                               </td>
-                              <td className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}>
+                              <td
+                                className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}
+                              >
                                 {row.roas ?? '-'}
                               </td>
-                              <td className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}>
+                              <td
+                                className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}
+                              >
                                 {row.mroas ?? '-'}
                               </td>
-                              <td className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}>
+                              <td
+                                className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}
+                              >
                                 {row.outChannelRoi ?? '-'}
                               </td>
-                              <td className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}>
+                              <td
+                                className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}
+                              >
                                 {row.outChannelMroi ?? '-'}
                               </td>
-                              <td className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}>
+                              <td
+                                className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}
+                              >
                                 {row.spendRank ?? '-'}
                               </td>
-                              <td className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}>
+                              <td
+                                className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}
+                              >
                                 {row.spendScale ?? '-'}
                               </td>
                             </tr>
@@ -1451,11 +1982,13 @@ const MarketEdge = () => {
             </>
           )}
 
+
           {renderPopup()}
         </div>
       </div>
     </div>
   );
 };
+
 
 export default MarketEdge;

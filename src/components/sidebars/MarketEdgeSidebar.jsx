@@ -20,14 +20,6 @@ const MarketEdgeSidebar = ({
   uploadedFile,
   onFileUpload,
 
-  regionLevels,
-  selectedRegionLevels,
-  onSelectedRegionLevelsChange,
-
-  channels,
-  selectedChannels,
-  onSelectedChannelsChange,
-
   selectedOptimization,
   onOptimizationChange,
 
@@ -40,18 +32,31 @@ const MarketEdgeSidebar = ({
   const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef(null);
 
+  // ✅ Order updated as requested:
+  // a) Sales Maximisation
+  // b) Spend Minimisation
+  // c) ROAS Maximisation
+  // d) ROI Maximisation
   const optimizationOptions = [
-    { id: 'sales', label: 'Sales Maximization', icon: TrendingUp },
-    { id: 'roas', label: 'ROAS Maximization', icon: TrendingUp },
+    { id: 'sales', label: 'Sales Maximisation', icon: TrendingUp },
     { id: 'spend', label: 'Spend Minimisation', icon: TrendingUp },
+    { id: 'roas', label: 'ROAS Maximisation', icon: TrendingUp },
     { id: 'roi', label: 'ROI Maximisation', icon: TrendingUp }
   ];
 
-  // Global constraints: numeric-only (no % shown)
+  // ✅ Global constraints order updated as requested:
+  // a) Sales
+  // b) Spend
+  // c) ROAS
+  // d) mROAS
+  // e) ROI
+  // f) mROI
   const constraintTypes = [
     { value: 'Sales', unit: '₹' },
-    { value: 'ROI', unit: '' },
     { value: 'Spend', unit: '₹' },
+    { value: 'ROAS', unit: '' },
+    { value: 'mROAS', unit: '' },
+    { value: 'ROI', unit: '' },
     { value: 'mROI', unit: '' }
   ];
 
@@ -99,10 +104,7 @@ const MarketEdgeSidebar = ({
     );
 
     if (availableTypes.length > 0) {
-      onConstraintsChange([
-        ...constraints,
-        { type: '', minimum: '', maximum: '' }
-      ]);
+      onConstraintsChange([...constraints, { type: '', minimum: '', maximum: '' }]);
     }
   };
 
@@ -115,31 +117,11 @@ const MarketEdgeSidebar = ({
     return type ? type.unit : '';
   };
 
-  const toggleInList = (list, value) =>
-    list.includes(value) ? list.filter((x) => x !== value) : [...list, value];
-
-  const handleToggleRegion = (value) => {
-    onSelectedRegionLevelsChange(toggleInList(selectedRegionLevels, value));
-  };
-
-  const handleToggleChannel = (value) => {
-    onSelectedChannelsChange(toggleInList(selectedChannels, value));
-  };
-
-  const handleSelectAllRegions = () => onSelectedRegionLevelsChange(regionLevels);
-  const handleClearAllRegions = () => onSelectedRegionLevelsChange([]);
-
-  const handleSelectAllChannels = () => onSelectedChannelsChange(channels);
-  const handleClearAllChannels = () => onSelectedChannelsChange([]);
-
   return (
     <>
       {/* Mobile Overlay */}
       {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={toggleSidebar}
-        />
+        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={toggleSidebar} />
       )}
 
       {/* Sidebar */}
@@ -174,7 +156,10 @@ const MarketEdgeSidebar = ({
               className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-card border border-border-gray hover:shadow-premium-md hover:border-secondary-text transition-all duration-200 group"
               type="button"
             >
-              <Home className="w-3.5 h-3.5 text-secondary-text group-hover:text-primary-text transition-colors" strokeWidth={2} />
+              <Home
+                className="w-3.5 h-3.5 text-secondary-text group-hover:text-primary-text transition-colors"
+                strokeWidth={2}
+              />
               <span className="text-xs font-semibold text-secondary-text group-hover:text-primary-text transition-colors">
                 Dashboard Home
               </span>
@@ -251,92 +236,6 @@ const MarketEdgeSidebar = ({
             </button>
           </div>
 
-          {/* Region Levels */}
-          <div className="p-4 border-b border-border-gray">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-lg font-bold text-primary-text">Region Levels</h3>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleSelectAllRegions}
-                  className="text-[10px] font-semibold text-secondary-text hover:text-primary-text"
-                >
-                  All
-                </button>
-                <button
-                  type="button"
-                  onClick={handleClearAllRegions}
-                  className="text-[10px] font-semibold text-secondary-text hover:text-primary-text"
-                >
-                  Clear
-                </button>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {regionLevels.map((lvl) => {
-                const active = selectedRegionLevels.includes(lvl);
-                return (
-                  <button
-                    key={lvl}
-                    type="button"
-                    onClick={() => handleToggleRegion(lvl)}
-                    className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-all ${
-                      active
-                        ? 'bg-gray-900 text-white border-gray-900'
-                        : 'bg-white text-secondary-text border-border-gray hover:border-secondary-text'
-                    }`}
-                  >
-                    {lvl}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Channels */}
-          <div className="p-4 border-b border-border-gray">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-lg font-bold text-primary-text">Channels</h3>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleSelectAllChannels}
-                  className="text-[10px] font-semibold text-secondary-text hover:text-primary-text"
-                >
-                  All
-                </button>
-                <button
-                  type="button"
-                  onClick={handleClearAllChannels}
-                  className="text-[10px] font-semibold text-secondary-text hover:text-primary-text"
-                >
-                  Clear
-                </button>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {channels.map((ch) => {
-                const active = selectedChannels.includes(ch);
-                return (
-                  <button
-                    key={ch}
-                    type="button"
-                    onClick={() => handleToggleChannel(ch)}
-                    className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-all ${
-                      active
-                        ? 'bg-gray-900 text-white border-gray-900'
-                        : 'bg-white text-secondary-text border-border-gray hover:border-secondary-text'
-                    }`}
-                  >
-                    {ch}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
           {/* Objective */}
           <div className="p-4 border-b border-border-gray">
             <div className="flex items-center gap-2 mb-3">
@@ -365,9 +264,7 @@ const MarketEdgeSidebar = ({
                       }`}
                       strokeWidth={2}
                     />
-                    <span className="text-sm font-semibold text-left flex-1">
-                      {option.label}
-                    </span>
+                    <span className="text-sm font-semibold text-left flex-1">{option.label}</span>
                   </button>
                 );
               })}
@@ -449,7 +346,9 @@ const MarketEdgeSidebar = ({
                           <input
                             type="number"
                             value={constraint.minimum}
-                            onChange={(e) => handleConstraintChange(index, 'minimum', e.target.value)}
+                            onChange={(e) =>
+                              handleConstraintChange(index, 'minimum', e.target.value)
+                            }
                             className="w-full px-2 py-1.5 border border-border-gray rounded-lg text-xs font-medium focus:outline-none focus:border-secondary-text focus:shadow-premium bg-white"
                           />
                         </div>
@@ -461,7 +360,9 @@ const MarketEdgeSidebar = ({
                           <input
                             type="number"
                             value={constraint.maximum}
-                            onChange={(e) => handleConstraintChange(index, 'maximum', e.target.value)}
+                            onChange={(e) =>
+                              handleConstraintChange(index, 'maximum', e.target.value)
+                            }
                             className="w-full px-2 py-1.5 border border-border-gray rounded-lg text-xs font-medium focus:outline-none focus:border-secondary-text focus:shadow-premium bg-white"
                           />
                         </div>
