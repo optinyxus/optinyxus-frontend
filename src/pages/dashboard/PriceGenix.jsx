@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../../components/common/Navbar';
 import PriceGenixSidebar from '../../components/sidebars/PriceGenixSidebar';
@@ -192,11 +192,27 @@ const PriceGenix = () => {
   const [currentTopArticlesSummary, setCurrentTopArticlesSummary] = useState(mockTopArticlesSummary);
 
   const [hideArticleLevelConstraints, setHideArticleLevelConstraints] = useState(false);
-  const [stockConstraintsEnabled, setStockConstraintsEnabled] = useState(false);
-  const [discountConstraintsEnabled, setDiscountConstraintsEnabled] = useState(false);
+  const [stockConstraintsEnabled, setStockConstraintsEnabled] = useState(true);
+  const [discountConstraintsEnabled, setDiscountConstraintsEnabled] = useState(true);
   const [articleLevelConstraints, setArticleLevelConstraints] = useState({});
 
   const scoringOptions = ['Article', 'Brand', 'Category', 'Store', 'Geography', 'Channel'];
+
+  useEffect(() => {
+    try {
+      const savedFileName = localStorage.getItem('pricegenix_uploadedFileName');
+      const savedPreviewRows = localStorage.getItem('pricegenix_uploadedPreviewRows');
+      const savedArticleConstraints = localStorage.getItem('pricegenix_articleLevelConstraints');
+
+      if (savedFileName && savedPreviewRows && savedArticleConstraints) {
+        setUploadedFile({ name: savedFileName });
+        setUploadedPreviewRows(JSON.parse(savedPreviewRows));
+        setArticleLevelConstraints(JSON.parse(savedArticleConstraints));
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, []);
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
@@ -211,6 +227,9 @@ const PriceGenix = () => {
       setResultsData([]);
       setViewMode('current');
       setSelectedHistoryItem(null);
+      localStorage.removeItem('pricegenix_uploadedFileName');
+      localStorage.removeItem('pricegenix_uploadedPreviewRows');
+      localStorage.removeItem('pricegenix_articleLevelConstraints');
       return;
     }
 
@@ -239,13 +258,22 @@ const PriceGenix = () => {
         };
       });
 
-      setArticleLevelConstraints({
+      const nextArticleLevelConstraints = {
         ...(fallbackFromRows || {}),
         ...(articleLevelConstraintsMap || {})
-      });
+      };
+      setArticleLevelConstraints(nextArticleLevelConstraints);
+
+      localStorage.setItem('pricegenix_uploadedFileName', file.name);
+      localStorage.setItem('pricegenix_uploadedPreviewRows', JSON.stringify(previewRows || []));
+      localStorage.setItem('pricegenix_articleLevelConstraints', JSON.stringify(nextArticleLevelConstraints));
     } catch (err) {
       setUploadedPreviewRows([]);
       setArticleLevelConstraints({});
+
+      localStorage.removeItem('pricegenix_uploadedFileName');
+      localStorage.removeItem('pricegenix_uploadedPreviewRows');
+      localStorage.removeItem('pricegenix_articleLevelConstraints');
     }
   };
 
