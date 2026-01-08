@@ -176,6 +176,37 @@ const MarketEdge = () => {
     return num.toLocaleString();
   };
 
+  const parseConstraintsToMap = (constraintsString) => {
+    const map = { sales: '', spend: '', roas: '', mroas: '', roi: '', mroi: '' };
+    if (!constraintsString) return map;
+
+    const parts = String(constraintsString)
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    parts.forEach((part) => {
+      const [rawKey, ...rest] = part.split(' ');
+      if (!rawKey || rest.length === 0) return;
+
+      const key = rawKey.trim().toLowerCase();
+      const value = rest.join(' ').trim();
+
+      if (key === 'sales') map.sales = value;
+      if (key === 'spend') map.spend = value;
+      if (key === 'roas') map.roas = value;
+      if (key === 'mroas') map.mroas = value;
+      if (key === 'roi') map.roi = value;
+      if (key === 'mroi') map.mroi = value;
+    });
+
+    return map;
+  };
+
+  const historyConstraintMap = useMemo(() => {
+    return parseConstraintsToMap(selectedHistoryItem?.constraints);
+  }, [selectedHistoryItem]);
+
 
   const currentPerf = useMemo(() => {
     const base = mockPerformanceByObjective[selectedOptimization] || mockPerformanceByObjective.sales;
@@ -338,29 +369,35 @@ const MarketEdge = () => {
 
 
   const handleReset = () => {
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch (e) {}
-
+    // Reset only UI selections / constraints / results.
+    // Keep uploadedFile + uploadedPreviewRows + localStorage uploaded data.
 
     setConstraints([]);
     setSelectedOptimization('sales');
     setSelectedRegionLevels([]);
     setSelectedChannels([]);
 
-
-    setUploadedFile(null);
-    setUploadedPreviewRows([]);
-
-
     setHasResults(false);
     setResultsData([]);
 
-
     setViewMode('current');
     setSelectedHistoryItem(null);
-    setChannelLevelConstraints({});
+    setIsHistoryDropdownOpen(false);
 
+    // Reset editable channel constraints back to defaults from uploaded CSV
+    const next = {};
+    (uploadedPreviewRows || []).forEach((row) => {
+      const key = row?.channel;
+      if (!key) return;
+
+      next[key] = {
+        channelRoas: row.channelRoas ?? '',
+        channelMroas: row.channelMroas ?? '',
+        channelRoi: row.channelRoi ?? '',
+        channelMroi: row.channelMroi ?? ''
+      };
+    });
+    setChannelLevelConstraints(next);
 
     setRoasConstraintsEnabled(true);
     setRoiConstraintsEnabled(true);
@@ -374,7 +411,6 @@ const MarketEdge = () => {
     setSelectedHistoryItem(iteration);
 
 
-    setHasResults(true);
     setViewMode('history');
 
 
@@ -978,7 +1014,13 @@ const MarketEdge = () => {
 
             <div className="p-4 sm:p-6 bg-white flex-1 overflow-auto">
               <div className="border border-gray-200 rounded-lg overflow-x-auto">
-                <table className="w-full text-xs sm:text-sm min-w-[520px]">
+                <table className="w-full text-xs sm:text-sm min-w-[720px] table-fixed">
+                  <colgroup>
+                    <col className="w-1/6" />
+                    <col className="w-1/6" />
+                    <col className="w-1/6" />
+                    <col className="w-1/2" />
+                  </colgroup>
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
@@ -990,7 +1032,7 @@ const MarketEdge = () => {
                       <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
                         Profits / Spend
                       </th>
-                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
+                      <th className="text-center py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
                         Observations
                       </th>
                     </tr>
@@ -1045,53 +1087,42 @@ const MarketEdge = () => {
 
               <div className="mt-6 text-sm font-semibold text-gray-900">Promotion Effectiveness</div>
               <div className="mt-3 border border-gray-200 rounded-lg overflow-x-auto">
-                <table className="w-full text-xs sm:text-sm min-w-[520px]">
+                <table className="w-full text-xs sm:text-sm min-w-[720px] table-fixed">
+                  <colgroup>
+                    <col className="w-[220px]" />
+                    <col className="w-[180px]" />
+                    <col className="w-auto" />
+                  </colgroup>
+
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
-                        {' '}
+                      <th
+                        colSpan={2}
+                        className="text-center py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900 border-b-2 border-gray-300 border-r border-gray-300"
+                      >
+                        Enhancement
                       </th>
-                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
-                        {' '}
-                      </th>
-                      <th className="text-left py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
+                      <th className="text-center py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900 border-b-2 border-gray-300">
                         Observations
                       </th>
                     </tr>
                   </thead>
+
                   <tbody className="bg-white">
                     <tr className="border-b border-gray-200">
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">
-                        Increamental Sales / Unit
-                      </td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        ₹10,218.33
-                      </td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-left text-gray-700">
-                        {' '}
-                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Sales / Unit</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹10,218.33</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-left text-gray-700">{' '}</td>
                     </tr>
                     <tr className="border-b border-gray-200">
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">
-                        Increamental Profit / Unit
-                      </td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        -₹511.28
-                      </td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-left text-gray-700">
-                        {' '}
-                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Profit / Unit</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">-₹511.28</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-left text-gray-700">{' '}</td>
                     </tr>
                     <tr>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">
-                        Increamental Discount / Unit
-                      </td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        ₹2,940.82
-                      </td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-left text-gray-700">
-                        {' '}
-                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Discount / Unit</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹2,940.82</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-left text-gray-700">{' '}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -1184,7 +1215,10 @@ const MarketEdge = () => {
       `}</style>
 
 
-      <MarketEdgeSidebar
+      {viewMode !== 'history' && (
+
+
+            <MarketEdgeSidebar
         isOpen={sidebarOpen}
         toggleSidebar={toggleSidebar}
         uploadedFile={uploadedFile}
@@ -1204,18 +1238,17 @@ const MarketEdge = () => {
       />
 
 
-      <Navbar
+      )}
+<Navbar
         toggleSidebar={toggleSidebar}
-        showMenuButton={true}
+        showMenuButton={viewMode !== 'history'}
         currentProduct="marketedge"
         onLogoClick={() => navigate('/dashboard')}
       />
 
 
       <div
-        className={`pt-16 transition-all duration-300 ${
-          viewMode === 'history' ? 'ml-0 lg:ml-[320px]' : 'ml-0 lg:ml-[320px]'
-        }`}
+        className={`pt-16 transition-all duration-300 ${viewMode === 'history' ? 'ml-0' : 'ml-0 lg:ml-[320px]'}`}
       >
         <div className="p-4 sm:p-6 space-y-4">
           {viewMode === 'history' && selectedHistoryItem && (
@@ -1260,19 +1293,82 @@ const MarketEdge = () => {
                   </div>
                 </div>
 
-
                 <div className="flex-1">
                   <div className="text-[10px] sm:text-xs text-gray-500">
                     <span className="font-semibold text-gray-700">Constraints</span>
                   </div>
 
+                  <div className="mt-2 max-w-[560px]">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+                        <table className="w-full table-fixed text-[10px] sm:text-xs">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="w-[140px] text-left py-2 px-3 font-semibold text-gray-900 border-b border-gray-200">
+                                Metric
+                              </th>
+                              <th className="text-right py-2 px-3 font-semibold text-gray-900 border-b border-gray-200">
+                                Value
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white">
+                            <tr className="border-b border-gray-100">
+                              <td className="py-2 px-3 font-medium text-gray-700">Sales</td>
+                              <td className="py-2 px-3 text-right text-gray-900">
+                                {historyConstraintMap.sales || '-'}
+                              </td>
+                            </tr>
+                            <tr className="border-b border-gray-100">
+                              <td className="py-2 px-3 font-medium text-gray-700">Spend</td>
+                              <td className="py-2 px-3 text-right text-gray-900">
+                                {historyConstraintMap.spend || '-'}
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="py-2 px-3 font-medium text-gray-700">ROAS</td>
+                              <td className="py-2 px-3 text-right text-gray-900">
+                                {historyConstraintMap.roas || '-'}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
 
-                  <div className="mt-2 border border-gray-200 rounded-lg overflow-hidden">
-                    <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 text-[10px] sm:text-xs font-medium text-gray-700">
-                      {selectedHistoryItem.constraints}
-                    </div>
-                    <div className="px-3 py-2 text-[10px] sm:text-xs text-gray-600">
-                      History view uses placeholder rows (structure-first).
+                      <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+                        <table className="w-full table-fixed text-[10px] sm:text-xs">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="w-[140px] text-left py-2 px-3 font-semibold text-gray-900 border-b border-gray-200">
+                                Metric
+                              </th>
+                              <th className="text-right py-2 px-3 font-semibold text-gray-900 border-b border-gray-200">
+                                Value
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white">
+                            <tr className="border-b border-gray-100">
+                              <td className="py-2 px-3 font-medium text-gray-700">mROAS</td>
+                              <td className="py-2 px-3 text-right text-gray-900">
+                                {historyConstraintMap.mroas || '-'}
+                              </td>
+                            </tr>
+                            <tr className="border-b border-gray-100">
+                              <td className="py-2 px-3 font-medium text-gray-700">ROI</td>
+                              <td className="py-2 px-3 text-right text-gray-900">
+                                {historyConstraintMap.roi || '-'}
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="py-2 px-3 font-medium text-gray-700">mROI</td>
+                              <td className="py-2 px-3 text-right text-gray-900">
+                                {historyConstraintMap.mroi || '-'}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1284,7 +1380,7 @@ const MarketEdge = () => {
           {viewMode === 'current' && (
             <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-200">
               <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 sm:gap-4">
-                <div className="flex flex-col gap-3 flex-1">
+                <div className="flex flex-col lg:flex-row gap-3 flex-1">
                   <div>
                     <div className="text-xs sm:text-sm font-semibold text-gray-900">Geography</div>
                     <div className="mt-2 flex flex-wrap gap-2">
@@ -1313,8 +1409,11 @@ const MarketEdge = () => {
                   </div>
 
 
+                  <div className="hidden lg:block w-px h-16 bg-gray-300 self-stretch" />
+
+
                   <div>
-                    <div className="text-xs sm:text-sm font-semibold text-gray-900">Channels</div>
+                    <div className="text-xs sm:text-sm font-semibold text-gray-900">Sales Channel</div>
                     <div className="mt-2 flex flex-wrap gap-2">
                       {channels.map((ch) => {
                         const active = selectedChannels.includes(ch);
