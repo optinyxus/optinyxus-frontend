@@ -71,7 +71,7 @@ const MarketEdge = () => {
 
 
   const regionLevels = ['Store Catchment', 'State', 'Zone', 'National'];
-  const channels = ['Online', 'Stores', 'Old Stores', 'New Stores'];
+  const channels = ['Portfolio', 'Online', 'Stores', 'Old Stores', 'New Stores'];
 
 
   const [selectedRegionLevels, setSelectedRegionLevels] = useState([]);
