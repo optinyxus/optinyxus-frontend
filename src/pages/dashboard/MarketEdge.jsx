@@ -1298,8 +1298,106 @@ const MarketEdge = () => {
                     <span className="font-semibold text-gray-700">Constraints</span>
                   </div>
 
-                  <div className="mt-2 max-w-[560px]">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="mt-2 max-w-[860px]">
+                    <div className="sm:hidden border border-gray-200 rounded-lg overflow-x-auto bg-white">
+                      <table className="w-full table-fixed text-[10px] sm:text-xs min-w-[560px]">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="w-[140px] text-left py-2 px-3 font-semibold text-gray-900 border-b border-gray-200">
+                              Metric
+                            </th>
+                            <th className="text-right py-2 px-3 font-semibold text-gray-900 border-b border-gray-200">
+                              Min
+                            </th>
+                            <th className="text-right py-2 px-3 font-semibold text-gray-900 border-b border-gray-200">
+                              Max
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white">
+                          <tr className="border-b border-gray-100">
+                            <td className="py-2 px-3 font-medium text-gray-700">Sales</td>
+                            <td className="py-2 px-3 text-right text-gray-900 whitespace-nowrap">
+                              {historyConstraintMap.sales && historyConstraintMap.sales.split('-').length === 2
+                                ? `₹ ${formatValue(historyConstraintMap.sales.split('-')[0])}`
+                                : '-'}
+                            </td>
+                            <td className="py-2 px-3 text-right text-gray-900 whitespace-nowrap">
+                              {historyConstraintMap.sales && historyConstraintMap.sales.split('-').length === 2
+                                ? `₹ ${formatValue(historyConstraintMap.sales.split('-')[1])}`
+                                : '-'}
+                            </td>
+                          </tr>
+                          <tr className="border-b border-gray-100">
+                            <td className="py-2 px-3 font-medium text-gray-700">Spend</td>
+                            <td className="py-2 px-3 text-right text-gray-900 whitespace-nowrap">
+                              {historyConstraintMap.spend && historyConstraintMap.spend.split('-').length === 2
+                                ? formatValue(historyConstraintMap.spend.split('-')[0])
+                                : '-'}
+                            </td>
+                            <td className="py-2 px-3 text-right text-gray-900 whitespace-nowrap">
+                              {historyConstraintMap.spend && historyConstraintMap.spend.split('-').length === 2
+                                ? formatValue(historyConstraintMap.spend.split('-')[1])
+                                : '-'}
+                            </td>
+                          </tr>
+                          <tr className="border-b border-gray-100">
+                            <td className="py-2 px-3 font-medium text-gray-700">ROAS</td>
+                            <td className="py-2 px-3 text-right text-gray-900 whitespace-nowrap">
+                              {historyConstraintMap.roas && historyConstraintMap.roas.split('-').length === 2
+                                ? formatValue(historyConstraintMap.roas.split('-')[0])
+                                : '-'}
+                            </td>
+                            <td className="py-2 px-3 text-right text-gray-900 whitespace-nowrap">
+                              {historyConstraintMap.roas && historyConstraintMap.roas.split('-').length === 2
+                                ? formatValue(historyConstraintMap.roas.split('-')[1])
+                                : '-'}
+                            </td>
+                          </tr>
+                          <tr className="border-b border-gray-100">
+                            <td className="py-2 px-3 font-medium text-gray-700">mROAS</td>
+                            <td className="py-2 px-3 text-right text-gray-900 whitespace-nowrap">
+                              {historyConstraintMap.mroas && historyConstraintMap.mroas.split('-').length === 2
+                                ? formatValue(historyConstraintMap.mroas.split('-')[0])
+                                : '-'}
+                            </td>
+                            <td className="py-2 px-3 text-right text-gray-900 whitespace-nowrap">
+                              {historyConstraintMap.mroas && historyConstraintMap.mroas.split('-').length === 2
+                                ? formatValue(historyConstraintMap.mroas.split('-')[1])
+                                : '-'}
+                            </td>
+                          </tr>
+                          <tr className="border-b border-gray-100">
+                            <td className="py-2 px-3 font-medium text-gray-700">ROI</td>
+                            <td className="py-2 px-3 text-right text-gray-900 whitespace-nowrap">
+                              {historyConstraintMap.roi && historyConstraintMap.roi.split('-').length === 2
+                                ? formatValue(historyConstraintMap.roi.split('-')[0])
+                                : '-'}
+                            </td>
+                            <td className="py-2 px-3 text-right text-gray-900 whitespace-nowrap">
+                              {historyConstraintMap.roi && historyConstraintMap.roi.split('-').length === 2
+                                ? formatValue(historyConstraintMap.roi.split('-')[1])
+                                : '-'}
+                            </td>
+                          </tr>
+                          <tr>
+                            <td className="py-2 px-3 font-medium text-gray-700">mROI</td>
+                            <td className="py-2 px-3 text-right text-gray-900 whitespace-nowrap">
+                              {historyConstraintMap.mroi && historyConstraintMap.mroi.split('-').length === 2
+                                ? formatValue(historyConstraintMap.mroi.split('-')[0])
+                                : '-'}
+                            </td>
+                            <td className="py-2 px-3 text-right text-gray-900 whitespace-nowrap">
+                              {historyConstraintMap.mroi && historyConstraintMap.mroi.split('-').length === 2
+                                ? formatValue(historyConstraintMap.mroi.split('-')[1])
+                                : '-'}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="hidden sm:grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
                         <table className="w-full table-fixed text-[10px] sm:text-xs">
                           <thead className="bg-gray-50">
@@ -1308,27 +1406,51 @@ const MarketEdge = () => {
                                 Metric
                               </th>
                               <th className="text-right py-2 px-3 font-semibold text-gray-900 border-b border-gray-200">
-                                Value
+                                Min
+                              </th>
+                              <th className="text-right py-2 px-3 font-semibold text-gray-900 border-b border-gray-200">
+                                Max
                               </th>
                             </tr>
                           </thead>
                           <tbody className="bg-white">
                             <tr className="border-b border-gray-100">
                               <td className="py-2 px-3 font-medium text-gray-700">Sales</td>
-                              <td className="py-2 px-3 text-right text-gray-900">
-                                {historyConstraintMap.sales || '-'}
+                              <td className="py-2 px-3 text-right text-gray-900 whitespace-nowrap">
+                                {historyConstraintMap.sales && historyConstraintMap.sales.split('-').length === 2
+                                  ? `₹ ${formatValue(historyConstraintMap.sales.split('-')[0])}`
+                                  : '-'}
+                              </td>
+                              <td className="py-2 px-3 text-right text-gray-900 whitespace-nowrap">
+                                {historyConstraintMap.sales && historyConstraintMap.sales.split('-').length === 2
+                                  ? `₹ ${formatValue(historyConstraintMap.sales.split('-')[1])}`
+                                  : '-'}
                               </td>
                             </tr>
                             <tr className="border-b border-gray-100">
                               <td className="py-2 px-3 font-medium text-gray-700">Spend</td>
                               <td className="py-2 px-3 text-right text-gray-900">
-                                {historyConstraintMap.spend || '-'}
+                                {historyConstraintMap.spend && historyConstraintMap.spend.split('-').length === 2
+                                  ? formatValue(historyConstraintMap.spend.split('-')[0])
+                                  : '-'}
+                              </td>
+                              <td className="py-2 px-3 text-right text-gray-900">
+                                {historyConstraintMap.spend && historyConstraintMap.spend.split('-').length === 2
+                                  ? formatValue(historyConstraintMap.spend.split('-')[1])
+                                  : '-'}
                               </td>
                             </tr>
                             <tr>
                               <td className="py-2 px-3 font-medium text-gray-700">ROAS</td>
                               <td className="py-2 px-3 text-right text-gray-900">
-                                {historyConstraintMap.roas || '-'}
+                                {historyConstraintMap.roas && historyConstraintMap.roas.split('-').length === 2
+                                  ? formatValue(historyConstraintMap.roas.split('-')[0])
+                                  : '-'}
+                              </td>
+                              <td className="py-2 px-3 text-right text-gray-900">
+                                {historyConstraintMap.roas && historyConstraintMap.roas.split('-').length === 2
+                                  ? formatValue(historyConstraintMap.roas.split('-')[1])
+                                  : '-'}
                               </td>
                             </tr>
                           </tbody>
@@ -1343,7 +1465,10 @@ const MarketEdge = () => {
                                 Metric
                               </th>
                               <th className="text-right py-2 px-3 font-semibold text-gray-900 border-b border-gray-200">
-                                Value
+                                Min
+                              </th>
+                              <th className="text-right py-2 px-3 font-semibold text-gray-900 border-b border-gray-200">
+                                Max
                               </th>
                             </tr>
                           </thead>
@@ -1351,19 +1476,40 @@ const MarketEdge = () => {
                             <tr className="border-b border-gray-100">
                               <td className="py-2 px-3 font-medium text-gray-700">mROAS</td>
                               <td className="py-2 px-3 text-right text-gray-900">
-                                {historyConstraintMap.mroas || '-'}
+                                {historyConstraintMap.mroas && historyConstraintMap.mroas.split('-').length === 2
+                                  ? formatValue(historyConstraintMap.mroas.split('-')[0])
+                                  : '-'}
+                              </td>
+                              <td className="py-2 px-3 text-right text-gray-900">
+                                {historyConstraintMap.mroas && historyConstraintMap.mroas.split('-').length === 2
+                                  ? formatValue(historyConstraintMap.mroas.split('-')[1])
+                                  : '-'}
                               </td>
                             </tr>
                             <tr className="border-b border-gray-100">
                               <td className="py-2 px-3 font-medium text-gray-700">ROI</td>
                               <td className="py-2 px-3 text-right text-gray-900">
-                                {historyConstraintMap.roi || '-'}
+                                {historyConstraintMap.roi && historyConstraintMap.roi.split('-').length === 2
+                                  ? formatValue(historyConstraintMap.roi.split('-')[0])
+                                  : '-'}
+                              </td>
+                              <td className="py-2 px-3 text-right text-gray-900">
+                                {historyConstraintMap.roi && historyConstraintMap.roi.split('-').length === 2
+                                  ? formatValue(historyConstraintMap.roi.split('-')[1])
+                                  : '-'}
                               </td>
                             </tr>
                             <tr>
                               <td className="py-2 px-3 font-medium text-gray-700">mROI</td>
                               <td className="py-2 px-3 text-right text-gray-900">
-                                {historyConstraintMap.mroi || '-'}
+                                {historyConstraintMap.mroi && historyConstraintMap.mroi.split('-').length === 2
+                                  ? formatValue(historyConstraintMap.mroi.split('-')[0])
+                                  : '-'}
+                              </td>
+                              <td className="py-2 px-3 text-right text-gray-900">
+                                {historyConstraintMap.mroi && historyConstraintMap.mroi.split('-').length === 2
+                                  ? formatValue(historyConstraintMap.mroi.split('-')[1])
+                                  : '-'}
                               </td>
                             </tr>
                           </tbody>
