@@ -1130,6 +1130,17 @@ const PriceGenix = () => {
                       const constraintMap = parseConstraintsToMap(selectedHistoryItem.constraints);
                       const val = (v) => (v && String(v).trim().length > 0 ? v : '-');
 
+                      const splitMinMax = (v) => {
+                        const raw = val(v);
+                        if (raw === '-') return { min: '-', max: '-' };
+                        const parts = String(raw)
+                          .split('-')
+                          .map((p) => p.trim())
+                          .filter(Boolean);
+                        if (parts.length === 2) return { min: parts[0], max: parts[1] };
+                        return { min: raw, max: raw };
+                      };
+
                       return (
                         <div className="mt-2">
                           {/* Mobile: single table */}
@@ -1138,56 +1149,66 @@ const PriceGenix = () => {
                               <thead className="bg-gray-50">
                                 <tr>
                                   <th className="w-[120px] text-left py-1 px-2 font-semibold text-gray-900 border-b border-gray-200">Metric</th>
-                                  <th className="text-right py-1 px-2 font-semibold text-gray-900 border-b border-gray-200">Value</th>
+                                  <th className="text-right py-1 px-2 font-semibold text-gray-900 border-b border-gray-200">Min</th>
+                                  <th className="text-right py-1 px-2 font-semibold text-gray-900 border-b border-gray-200">Max</th>
                                 </tr>
                               </thead>
                               <tbody className="bg-white">
                                 <tr className="border-b border-gray-100">
                                   <td className="py-1 px-2 font-medium text-gray-700">Sales</td>
-                                  <td className="py-1 px-2 text-right text-gray-900">{val(constraintMap.sales)}</td>
+                                  <td className="py-1 px-2 text-right text-gray-900">{splitMinMax(constraintMap.sales).min}</td>
+                                  <td className="py-1 px-2 text-right text-gray-900">{splitMinMax(constraintMap.sales).max}</td>
                                 </tr>
                                 <tr className="border-b border-gray-100">
                                   <td className="py-1 px-2 font-medium text-gray-700">Profit</td>
-                                  <td className="py-1 px-2 text-right font-semibold text-gray-900">{val(constraintMap.profit)}</td>
+                                  <td className="py-1 px-2 text-right font-semibold text-gray-900">{splitMinMax(constraintMap.profit).min}</td>
+                                  <td className="py-1 px-2 text-right font-semibold text-gray-900">{splitMinMax(constraintMap.profit).max}</td>
                                 </tr>
                                 <tr className="border-b border-gray-100">
                                   <td className="py-1 px-2 font-medium text-gray-700">Profit %</td>
-                                  <td className="py-1 px-2 text-right text-gray-900">{val(constraintMap.profitPercentage)}</td>
+                                  <td className="py-1 px-2 text-right text-gray-900">{splitMinMax(constraintMap.profitPercentage).min}</td>
+                                  <td className="py-1 px-2 text-right text-gray-900">{splitMinMax(constraintMap.profitPercentage).max}</td>
                                 </tr>
                                 <tr className="border-b border-gray-100">
                                   <td className="py-1 px-2 font-medium text-gray-700">Units</td>
-                                  <td className="py-1 px-2 text-right text-gray-900">{val(constraintMap.units)}</td>
+                                  <td className="py-1 px-2 text-right text-gray-900">{splitMinMax(constraintMap.units).min}</td>
+                                  <td className="py-1 px-2 text-right text-gray-900">{splitMinMax(constraintMap.units).max}</td>
                                 </tr>
                                 <tr>
                                   <td className="py-1 px-2 font-medium text-gray-700">Discount</td>
-                                  <td className="py-1 px-2 text-right font-semibold text-gray-900">{val(constraintMap.discount)}</td>
+                                  <td className="py-1 px-2 text-right font-semibold text-gray-900">{splitMinMax(constraintMap.discount).min}</td>
+                                  <td className="py-1 px-2 text-right font-semibold text-gray-900">{splitMinMax(constraintMap.discount).max}</td>
                                 </tr>
                               </tbody>
                             </table>
                           </div>
 
                           {/* Tablet/Desktop: two smaller tables */}
-                          <div className="hidden sm:grid grid-cols-2 gap-2 max-w-[560px]">
+                          <div className="hidden sm:grid grid-cols-2 gap-2 max-w-[720px]">
                             <div className="border border-gray-200 rounded-lg overflow-hidden">
                               <table className="w-full table-fixed text-[10px] sm:text-xs">
                                 <thead className="bg-gray-50">
                                   <tr>
                                     <th className="w-[120px] text-left py-1 px-2 font-semibold text-gray-900 border-b border-gray-200">Metric</th>
-                                    <th className="text-right py-1 px-2 font-semibold text-gray-900 border-b border-gray-200">Value</th>
+                                    <th className="text-right py-1 px-2 font-semibold text-gray-900 border-b border-gray-200">Min</th>
+                                  <th className="text-right py-1 px-2 font-semibold text-gray-900 border-b border-gray-200">Max</th>
                                   </tr>
                                 </thead>
                                 <tbody className="bg-white">
                                   <tr className="border-b border-gray-100">
                                     <td className="py-1 px-2 font-medium text-gray-700">Sales</td>
-                                    <td className="py-1 px-2 text-right text-gray-900">{val(constraintMap.sales)}</td>
+                                    <td className="py-1 px-2 text-right text-gray-900">{splitMinMax(constraintMap.sales).min}</td>
+                                  <td className="py-1 px-2 text-right text-gray-900">{splitMinMax(constraintMap.sales).max}</td>
                                   </tr>
                                   <tr className="border-b border-gray-100">
                                     <td className="py-1 px-2 font-medium text-gray-700">Profit</td>
-                                    <td className="py-1 px-2 text-right font-semibold text-gray-900">{val(constraintMap.profit)}</td>
+                                    <td className="py-1 px-2 text-right font-semibold text-gray-900">{splitMinMax(constraintMap.profit).min}</td>
+                                  <td className="py-1 px-2 text-right font-semibold text-gray-900">{splitMinMax(constraintMap.profit).max}</td>
                                   </tr>
                                   <tr>
                                     <td className="py-1 px-2 font-medium text-gray-700">Profit %</td>
-                                    <td className="py-1 px-2 text-right text-gray-900">{val(constraintMap.profitPercentage)}</td>
+                                    <td className="py-1 px-2 text-right text-gray-900">{splitMinMax(constraintMap.profitPercentage).min}</td>
+                                  <td className="py-1 px-2 text-right text-gray-900">{splitMinMax(constraintMap.profitPercentage).max}</td>
                                   </tr>
                                 </tbody>
                               </table>
@@ -1198,17 +1219,20 @@ const PriceGenix = () => {
                                 <thead className="bg-gray-50">
                                   <tr>
                                     <th className="w-[120px] text-left py-1 px-2 font-semibold text-gray-900 border-b border-gray-200">Metric</th>
-                                    <th className="text-right py-1 px-2 font-semibold text-gray-900 border-b border-gray-200">Value</th>
+                                    <th className="text-right py-1 px-2 font-semibold text-gray-900 border-b border-gray-200">Min</th>
+                                  <th className="text-right py-1 px-2 font-semibold text-gray-900 border-b border-gray-200">Max</th>
                                   </tr>
                                 </thead>
                                 <tbody className="bg-white">
                                   <tr className="border-b border-gray-100">
                                     <td className="py-1 px-2 font-medium text-gray-700">Units</td>
-                                    <td className="py-1 px-2 text-right text-gray-900">{val(constraintMap.units)}</td>
+                                    <td className="py-1 px-2 text-right text-gray-900">{splitMinMax(constraintMap.units).min}</td>
+                                  <td className="py-1 px-2 text-right text-gray-900">{splitMinMax(constraintMap.units).max}</td>
                                   </tr>
                                   <tr>
                                     <td className="py-1 px-2 font-medium text-gray-700">Discount</td>
-                                    <td className="py-1 px-2 text-right font-semibold text-gray-900">{val(constraintMap.discount)}</td>
+                                    <td className="py-1 px-2 text-right font-semibold text-gray-900">{splitMinMax(constraintMap.discount).min}</td>
+                                  <td className="py-1 px-2 text-right font-semibold text-gray-900">{splitMinMax(constraintMap.discount).max}</td>
                                   </tr>
                                 </tbody>
                               </table>
