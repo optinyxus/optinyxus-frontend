@@ -562,150 +562,155 @@ const MarketEdge = () => {
 
   const beforeRunColSpan = 2 + (showRoasCols ? 2 : 0) + (showRoiCols ? 2 : 0) + 2; // + TestRangeMin/Max
   const afterRunColSpan = 2 + (showRoasCols ? 2 : 0) + (showRoiCols ? 2 : 0) + 10; // + outputs
-
-
   const sanitizeTestSpreadInput = (value) => {
     const s = String(value ?? '');
     if (s === '') return '';
+
+    // Allow only digits + optional single decimal point with up to 2 decimal places
     if (!/^\d*\.?\d*$/.test(s)) return null;
     const parts = s.split('.');
     if (parts.length > 2) return null;
     if (parts[1] && parts[1].length > 2) return null;
-    const num = Number(s);
-    if (Number.isFinite(num) && num >= 25) return null;
+
+    // Enforce max value (<= 25)
+    const n = Number(s);
+    if (Number.isFinite(n) && n > 25) return null;
+
     return s;
   };
-
   const formatTestSpreadValue = (value) => {
     if (value === '' || value === null || value === undefined) return '';
     const num = Number(value);
     if (!Number.isFinite(num)) return '';
-    const rounded = Math.round(num * 100) / 100;
-    if (rounded >= 25) return '24.99';
+
+    const clamped = Math.min(num, 25);
+    const rounded = Math.round(clamped * 100) / 100;
     return rounded.toFixed(2);
   };
 
 
-  const renderChannelConstraintControlBar = () => {
+    const renderChannelConstraintControlBar = () => {
     return (
-      <div className="flex items-start justify-start sm:justify-end">
-        <div className="flex flex-nowrap items-center gap-3 overflow-x-auto">
-          <div className="flex flex-nowrap items-center gap-4 border border-gray-200 rounded-lg px-3 py-2 bg-white">
-            <span className="text-[10px] sm:text-xs font-bold text-gray-900 whitespace-nowrap">
-              Channel Level Constraints
-            </span>
+      <div className="w-full overflow-x-auto">
+        <div className="flex flex-nowrap items-center justify-between gap-3 min-w-max">
+          <div className="flex flex-nowrap items-center gap-3">
+            <div className="flex flex-col gap-1 border border-gray-200 rounded-lg px-3 py-2 bg-white">
+                        <span className="text-[10px] sm:text-xs font-bold text-gray-900 whitespace-nowrap">
+                          Test Spread
+                        </span>
 
+                        <div className="flex items-center gap-2 flex-nowrap">
+                          <label className="flex items-center gap-2 text-[10px] sm:text-xs text-gray-700 font-medium whitespace-nowrap">
+                            Min
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={testSpreadMin}
+                              onChange={(e) => {
+                                const next = sanitizeTestSpreadInput(e.target.value);
+                                if (next === null) return;
+                                setTestSpreadMin(next);
+                              }}
+                              onBlur={() => setTestSpreadMin(formatTestSpreadValue(testSpreadMin))}
+                              placeholder="0.00"
+                              className="no-spinner w-20 sm:w-24 text-right px-2 py-1 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 whitespace-nowrap"
+                            />
+                          </label>
 
-            <label className="flex items-center gap-2 text-[10px] sm:text-xs text-gray-700 font-medium whitespace-nowrap">
-              <input
-                type="checkbox"
-                checked={roasConstraintsEnabled}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  setRoasConstraintsEnabled(checked);
-                  if (!checked) setHideChannelLevelConstraints(false);
-                }}
-                className="w-4 h-4"
-              />
-              ROAS
-            </label>
+                          <label className="flex items-center gap-2 text-[10px] sm:text-xs text-gray-700 font-medium whitespace-nowrap">
+                            Max
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={testSpreadMax}
+                              onChange={(e) => {
+                                const next = sanitizeTestSpreadInput(e.target.value);
+                                if (next === null) return;
+                                setTestSpreadMax(next);
+                              }}
+                              onBlur={() => setTestSpreadMax(formatTestSpreadValue(testSpreadMax))}
+                              placeholder="0.00"
+                              className="no-spinner w-20 sm:w-24 text-right px-2 py-1 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 whitespace-nowrap"
+                            />
+                          </label>
 
-
-            <label className="flex items-center gap-2 text-[10px] sm:text-xs text-gray-700 font-medium whitespace-nowrap">
-              <input
-                type="checkbox"
-                checked={roiConstraintsEnabled}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  setRoiConstraintsEnabled(checked);
-                  if (!checked) setHideChannelLevelConstraints(false);
-                }}
-                className="w-4 h-4"
-              />
-              ROI
-            </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTestSpreadMin(formatTestSpreadValue(testSpreadMin));
+                              setTestSpreadMax(formatTestSpreadValue(testSpreadMax));
+                            }}
+                            className="flex items-center gap-2 px-2 py-2 border border-gray-200 rounded-lg text-[10px] sm:text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+                          >
+                            Set
+                          </button>
+                        </div>
+                      </div>
           </div>
 
-          <div className="flex flex-col gap-1 border border-gray-200 rounded-lg px-3 py-1.5 bg-white">
-            <span className="text-[10px] sm:text-xs font-bold text-gray-900 whitespace-nowrap block w-full text-center">
-              Test Spread
-            </span>
-
-            <div className="flex items-center gap-2 flex-nowrap">
-              <label className="flex items-center gap-2 text-[10px] sm:text-xs text-gray-700 font-medium whitespace-nowrap">
-                Min
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={testSpreadMin}
-                  onChange={(e) => {
-                    const next = sanitizeTestSpreadInput(e.target.value);
-                    if (next === null) return;
-                    setTestSpreadMin(next);
-                  }}
-                  onBlur={() => setTestSpreadMin(formatTestSpreadValue(testSpreadMin))}
-                  placeholder="0.00"
-                  className="no-spinner w-20 sm:w-24 text-right px-2 py-1 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 whitespace-nowrap"
-                />
-              </label>
-
-              <label className="flex items-center gap-2 text-[10px] sm:text-xs text-gray-700 font-medium whitespace-nowrap">
-                Max
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={testSpreadMax}
-                  onChange={(e) => {
-                    const next = sanitizeTestSpreadInput(e.target.value);
-                    if (next === null) return;
-                    setTestSpreadMax(next);
-                  }}
-                  onBlur={() => setTestSpreadMax(formatTestSpreadValue(testSpreadMax))}
-                  placeholder="0.00"
-                  className="no-spinner w-20 sm:w-24 text-right px-2 py-1 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 whitespace-nowrap"
-                />
-              </label>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setTestSpreadMin(formatTestSpreadValue(testSpreadMin));
-                  setTestSpreadMax(formatTestSpreadValue(testSpreadMax));
-                }}
-                className="flex items-center gap-2 px-2 py-1 border border-gray-200 rounded-lg text-[10px] sm:text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
-              >
-                Set
-              </button>
-            </div>
-          </div>
+          <div className="flex flex-nowrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-4 border border-gray-200 rounded-lg px-3 py-2 bg-white">
+                        <span className="text-[10px] sm:text-xs font-bold text-gray-900 whitespace-nowrap">
+                          Channel Level Constraints
+                        </span>
 
 
-          <div className="flex items-center gap-3">
-            <label
-              className={`flex items-center gap-2 text-[10px] sm:text-xs font-semibold whitespace-nowrap ${
-                canToggleHide ? 'text-gray-900 cursor-pointer' : 'text-gray-400 cursor-not-allowed'
-              }`}
-            >
-              <input
-                type="checkbox"
-                disabled={!canToggleHide}
-                checked={hideChannelLevelConstraints}
-                onChange={(e) => setHideChannelLevelConstraints(e.target.checked)}
-                className="w-4 h-4"
-              />
-              Hide
-            </label>
+                        <label className="flex items-center gap-2 text-[10px] sm:text-xs text-gray-700 font-medium whitespace-nowrap">
+                          <input
+                            type="checkbox"
+                            checked={roasConstraintsEnabled}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setRoasConstraintsEnabled(checked);
+                              if (!checked) setHideChannelLevelConstraints(false);
+                            }}
+                            className="w-4 h-4"
+                          />
+                          ROAS
+                        </label>
 
 
-            <button
-              type="button"
-              onClick={resetChannelConstraints}
-              className="flex items-center gap-2 px-2 py-2 border border-gray-200 rounded-lg text-[10px] sm:text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
-              title="Reset channel constraints"
-            >
-              <RotateCcw className="w-3.5 h-3.5" strokeWidth={2} />
-              Reset
-            </button>
+                        <label className="flex items-center gap-2 text-[10px] sm:text-xs text-gray-700 font-medium whitespace-nowrap">
+                          <input
+                            type="checkbox"
+                            checked={roiConstraintsEnabled}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setRoiConstraintsEnabled(checked);
+                              if (!checked) setHideChannelLevelConstraints(false);
+                            }}
+                            className="w-4 h-4"
+                          />
+                          ROI
+                        </label>
+                      </div>
+            <div className="flex items-center gap-3">
+                        <label
+                          className={`flex items-center gap-2 text-[10px] sm:text-xs font-semibold whitespace-nowrap ${
+                            canToggleHide ? 'text-gray-900 cursor-pointer' : 'text-gray-400 cursor-not-allowed'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            disabled={!canToggleHide}
+                            checked={hideChannelLevelConstraints}
+                            onChange={(e) => setHideChannelLevelConstraints(e.target.checked)}
+                            className="w-4 h-4"
+                          />
+                          Hide
+                        </label>
+
+
+                        <button
+                          type="button"
+                          onClick={resetChannelConstraints}
+                          className="flex items-center gap-2 px-2 py-2 border border-gray-200 rounded-lg text-[10px] sm:text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+                          title="Reset channel constraints"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" strokeWidth={2} />
+                          Reset
+                        </button>
+                      </div>
           </div>
         </div>
       </div>
