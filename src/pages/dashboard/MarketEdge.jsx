@@ -111,6 +111,10 @@ const MarketEdge = () => {
   const [hideChannelLevelConstraints, setHideChannelLevelConstraints] = useState(false);
 
 
+  const [testSpreadMin, setTestSpreadMin] = useState('');
+  const [testSpreadMax, setTestSpreadMax] = useState('');
+
+
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
 
@@ -528,7 +532,7 @@ const MarketEdge = () => {
   const canToggleHide = roasConstraintsEnabled || roiConstraintsEnabled;
 
 
-  // ✅ FIX: row highlight must depend ONLY on whether values are filled (not on checkbox toggles)
+  // ✅ FIX: row highlight must depend ONLY on whether values are filled (not on checkbox toggles) [file:14]
   const getRowHighlight = (channel) => {
     const c = channelLevelConstraints[channel] || {};
     const roasFilled = !!(c.channelRoas || c.channelMroas);
@@ -560,11 +564,33 @@ const MarketEdge = () => {
   const afterRunColSpan = 2 + (showRoasCols ? 2 : 0) + (showRoiCols ? 2 : 0) + 10; // + outputs
 
 
+  const sanitizeTestSpreadInput = (value) => {
+    const s = String(value ?? '');
+    if (s === '') return '';
+    if (!/^\d*\.?\d*$/.test(s)) return null;
+    const parts = s.split('.');
+    if (parts.length > 2) return null;
+    if (parts[1] && parts[1].length > 2) return null;
+    const num = Number(s);
+    if (Number.isFinite(num) && num >= 25) return null;
+    return s;
+  };
+
+  const formatTestSpreadValue = (value) => {
+    if (value === '' || value === null || value === undefined) return '';
+    const num = Number(value);
+    if (!Number.isFinite(num)) return '';
+    const rounded = Math.round(num * 100) / 100;
+    if (rounded >= 25) return '24.99';
+    return rounded.toFixed(2);
+  };
+
+
   const renderChannelConstraintControlBar = () => {
     return (
       <div className="flex items-start justify-start sm:justify-end">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex flex-wrap items-center gap-4 border border-gray-200 rounded-lg px-3 py-2 bg-white">
+        <div className="flex flex-nowrap items-center gap-3 overflow-x-auto">
+          <div className="flex flex-nowrap items-center gap-4 border border-gray-200 rounded-lg px-3 py-2 bg-white">
             <span className="text-[10px] sm:text-xs font-bold text-gray-900 whitespace-nowrap">
               Channel Level Constraints
             </span>
@@ -598,6 +624,59 @@ const MarketEdge = () => {
               />
               ROI
             </label>
+          </div>
+
+          <div className="flex flex-col gap-1 border border-gray-200 rounded-lg px-3 py-1.5 bg-white">
+            <span className="text-[10px] sm:text-xs font-bold text-gray-900 whitespace-nowrap block w-full text-center">
+              Test Spread
+            </span>
+
+            <div className="flex items-center gap-2 flex-nowrap">
+              <label className="flex items-center gap-2 text-[10px] sm:text-xs text-gray-700 font-medium whitespace-nowrap">
+                Min
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={testSpreadMin}
+                  onChange={(e) => {
+                    const next = sanitizeTestSpreadInput(e.target.value);
+                    if (next === null) return;
+                    setTestSpreadMin(next);
+                  }}
+                  onBlur={() => setTestSpreadMin(formatTestSpreadValue(testSpreadMin))}
+                  placeholder="0.00"
+                  className="no-spinner w-20 sm:w-24 text-right px-2 py-1 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 whitespace-nowrap"
+                />
+              </label>
+
+              <label className="flex items-center gap-2 text-[10px] sm:text-xs text-gray-700 font-medium whitespace-nowrap">
+                Max
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={testSpreadMax}
+                  onChange={(e) => {
+                    const next = sanitizeTestSpreadInput(e.target.value);
+                    if (next === null) return;
+                    setTestSpreadMax(next);
+                  }}
+                  onBlur={() => setTestSpreadMax(formatTestSpreadValue(testSpreadMax))}
+                  placeholder="0.00"
+                  className="no-spinner w-20 sm:w-24 text-right px-2 py-1 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 whitespace-nowrap"
+                />
+              </label>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setTestSpreadMin(formatTestSpreadValue(testSpreadMin));
+                  setTestSpreadMax(formatTestSpreadValue(testSpreadMax));
+                }}
+                className="flex items-center gap-2 px-2 py-1 border border-gray-200 rounded-lg text-[10px] sm:text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+              >
+                Set
+              </button>
+            </div>
           </div>
 
 
@@ -1963,8 +2042,7 @@ const MarketEdge = () => {
                       Channel Level Constraints
                     </h3>
                     <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5">
-                      Removed grouped inner headings; channel names stay single-line.
-                    </p>
+                                          </p>
                   </div>
 
 
