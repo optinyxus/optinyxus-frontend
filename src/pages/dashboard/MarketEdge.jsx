@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import Navbar from '../../components/common/Navbar';
 import MarketEdgeSidebar from '../../components/sidebars/MarketEdgeSidebar';
 import loadMarketEdgeCsv from '../../utils/marketedgeCsvLoader';
+import { formatCurrency, formatNumber } from '../../utils/currencyUtils';
+import { maximizeROAS, maximizeGMV, minimizeSpend, transformBackendResponse, calculateTestRanges } from '../../api/marketEdgeApi';
 import {
   Target,
   Download,
@@ -13,7 +15,10 @@ import {
   ChevronLeft,
   Eye,
   History,
-  RotateCcw
+  RotateCcw,
+  Loader2,
+  AlertCircle,
+  CheckCircle2
 } from 'lucide-react';
 
 
@@ -101,18 +106,36 @@ const MarketEdge = () => {
   const [popupType, setPopupType] = useState(null);
 
 
+  // API state
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const [optimizationError, setOptimizationError] = useState(null);
+  const [optimizationMetadata, setOptimizationMetadata] = useState(null);
+
+
   // Editable per-channel constraints (PriceGenix-like)
   const [channelLevelConstraints, setChannelLevelConstraints] = useState({});
 
 
   // Channel constraints control bar (like PriceGenix "Article Level Constraints")
   const [roasConstraintsEnabled, setRoasConstraintsEnabled] = useState(true);
-  const [roiConstraintsEnabled, setRoiConstraintsEnabled] = useState(true);
+  const [roiConstraintsEnabled, setRoiConstraintsEnabled] = useState(false);
   const [hideChannelLevelConstraints, setHideChannelLevelConstraints] = useState(false);
 
 
   const [testSpreadMin, setTestSpreadMin] = useState('');
   const [testSpreadMax, setTestSpreadMax] = useState('');
+
+  // Funds available from CSV (used for test range calculation)
+  // Dynamic object: keys are channel names from CSV, values are fund amounts
+  const [fundsAvailable, setFundsAvailable] = useState({});
+
+  // ✅ FIX: Store original CSV data separately so reset can restore it
+  const [originalCsvRows, setOriginalCsvRows] = useState([]);
+
+  // ✅ FIX: Store test ranges separately so they don't pollute localStorage
+  // Keys are channel names, values are { min, max }
+  const [testRanges, setTestRanges] = useState({});
+
 
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
@@ -122,12 +145,17 @@ const MarketEdge = () => {
 
 
   useEffect(() => {
+    console.log('🔄 useEffect: Loading from localStorage');
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
+      if (!raw) {
+        console.log('  No localStorage data found');
+        return;
+      }
       const saved = JSON.parse(raw);
       if (!saved) return;
 
+      console.log('  Restoring data:', saved);
 
       if (saved.uploadedFileName) {
         setUploadedFile({ name: saved.uploadedFileName });
@@ -135,13 +163,34 @@ const MarketEdge = () => {
 
 
       setUploadedPreviewRows(saved.uploadedPreviewRows || []);
+      // ✅ FIX: Also restore originalCsvRows from localStorage
+      setOriginalCsvRows(JSON.parse(JSON.stringify(saved.uploadedPreviewRows || [])));
       setChannelLevelConstraints(saved.channelLevelConstraints || {});
 
+      // ✅ RESTORE FUNDS AVAILABLE (clean up null values from old schema)
+      if (saved.fundsAvailable) {
+        // Filter out null/undefined values (old SEO/SMM/OOH keys)
+        const cleanedFunds = Object.entries(saved.fundsAvailable)
+          .filter(([name, value]) => value !== null && value !== undefined && value > 0)
+          .reduce((acc, [name, value]) => {
+            acc[name] = value;
+            return acc;
+          }, {});
+
+        setFundsAvailable(cleanedFunds);
+        console.log('  ✓ Restored fundsAvailable (cleaned):', cleanedFunds);
+      } else {
+        console.log('  ✗ No fundsAvailable in localStorage');
+      }
+
+      console.log("[MarketEdge DEBUG] localStorage Spend:", saved.resultsData);
 
       // Safety: never restore results if there is no uploaded file name
       setHasResults(!!saved.hasResults && !!saved.uploadedFileName);
       setResultsData(saved.resultsData || []);
-    } catch (e) {}
+    } catch (e) {
+      console.error('Error loading from localStorage:', e);
+    }
   }, []);
 
 
@@ -150,19 +199,28 @@ const MarketEdge = () => {
       const uploadedFileName = uploadedFile?.name || '';
       if (!uploadedFileName) return;
 
+      // ✅ Strip test ranges before saving (they are temporary calculated values)
+      const previewRowsWithoutTestRanges = (uploadedPreviewRows || []).map(row => {
+        const { testRangeMin, testRangeMax, ...rest } = row;
+        return rest;
+      });
 
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({
-          uploadedFileName,
-          uploadedPreviewRows: uploadedPreviewRows || [],
-          channelLevelConstraints: channelLevelConstraints || {},
-          hasResults: !!hasResults,
-          resultsData: resultsData || []
-        })
-      );
-    } catch (e) {}
-  }, [uploadedFile, uploadedPreviewRows, channelLevelConstraints, hasResults, resultsData]);
+      const dataToSave = {
+        uploadedFileName,
+        uploadedPreviewRows: previewRowsWithoutTestRanges,
+        channelLevelConstraints: channelLevelConstraints || {},
+        fundsAvailable: fundsAvailable,
+        // ⚠️ DO NOT SAVE RESULTS to avoid localStorage quota limits / app weight
+        hasResults: false,
+        resultsData: []
+      };
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+      console.log('💾 Saved to localStorage (Results EXCLUDED to save space):', dataToSave);
+    } catch (e) {
+      console.error('Error saving to localStorage:', e);
+    }
+  }, [uploadedFile, uploadedPreviewRows, channelLevelConstraints, fundsAvailable, hasResults, resultsData]);
 
 
   const formatMoney = (n) => {
@@ -178,6 +236,28 @@ const MarketEdge = () => {
     const num = Number(n);
     if (!Number.isFinite(num)) return String(n);
     return num.toLocaleString();
+  };
+
+  function cleanNumber(value) {
+    if (value === null || value === undefined || value === '') return 0;
+    if (typeof value === "string") {
+      return Number(value.replace(/[₹,\s]/g, ""));
+    }
+    return Number(value);
+  }
+
+  const formatINR = (value) => {
+    if (value === null || value === undefined || value === '') return "-";
+
+    const num = cleanNumber(value);
+    if (!Number.isFinite(num)) return String(value);
+
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0,
+      minimumFractionDigits: 0
+    }).format(num);
   };
 
   const parseConstraintsToMap = (constraintsString) => {
@@ -213,46 +293,98 @@ const MarketEdge = () => {
 
 
   const currentPerf = useMemo(() => {
+    // STEP 1: Fixed Baseline Values for Control Row
+    const control = {
+      sales: 70772209,
+      spend: 8059555,
+      roas: 8.78,
+      mroas: 9.085,
+      roi: 9.01,
+      mroi: 10.76
+    };
+
+    // STEP 2 & 5: Map Portfolio Results to Test Row (Fix variable mapping bug)
+    // Default test values from mock data or initial results
     const base = mockPerformanceByObjective[selectedOptimization] || mockPerformanceByObjective.sales;
+    let test = { ...base.test };
 
+    if (hasResults && resultsData) {
+      const portfolioRow = (resultsData || []).find(r => r.channel === 'Portfolio (Total)');
+      if (portfolioRow) {
+        test = {
+          sales: cleanNumber(portfolioRow.gmv),
+          spend: cleanNumber(portfolioRow.testSpend),
+          roas: Number(portfolioRow.roas) || 0,
+          mroas: Number(portfolioRow.mroas) || 0,
+          // Use backend provided ROI/mROI if available, otherwise fallback to mock/0
+          roi: Number(portfolioRow.outChannelRoi) || base.test.roi || 0,
+          mroi: Number(portfolioRow.outChannelMroi) || base.test.mroi || 0
+        };
+      }
+    }
 
-    const control = base.control;
-    const test = base.test;
-
-
+    // STEP 3: Recalculate Growth & Growth %
+    const growthSpend = cleanNumber(test.spend) - cleanNumber(control.spend);
     const growth = {
-      sales: test.sales - control.sales,
-      spend: test.spend - control.spend,
-      roi: test.roi - control.roi,
+      sales: cleanNumber(test.sales) - cleanNumber(control.sales),
+      spend: growthSpend,
       roas: test.roas - control.roas,
+      mroas: test.mroas - control.mroas,
+      roi: test.roi - control.roi,
       mroi: test.mroi - control.mroi
     };
 
-
-    const pct = (a, b) => {
-      if (!b) return 0;
-      return (a / b) * 100;
+    const pct = (val, baseVal) => {
+      const v = Number(val);
+      const b = Number(baseVal);
+      if (b === 0 || b === null || isNaN(b) || isNaN(v)) return 0;
+      return (v / b) * 100;
     };
-
 
     const growthPercent = {
       sales: pct(growth.sales, control.sales),
       spend: pct(growth.spend, control.spend),
-      roi: pct(growth.roi, control.roi),
       roas: pct(growth.roas, control.roas),
+      mroas: pct(growth.mroas, control.mroas),
+      roi: pct(growth.roi, control.roi),
       mroi: pct(growth.mroi, control.mroi)
     };
 
+    // STEP 4: Add Debug Logs
+    console.log("[MarketEdge DEBUG] Raw Control Spend:", control.spend);
+    console.log("[MarketEdge DEBUG] Raw Growth Spend:", growth.spend);
+
+    console.log("[MarketEdge FRONTEND] Performance Data", {
+      controlData: control,
+      portfolioData: test,
+      growth,
+      growthPercent
+    });
+
+    console.log("[MarketEdge FRONTEND] Spend Formatting Check (Control)", {
+      rawSpend: control.spend,
+      cleanedSpend: cleanNumber(control.spend),
+      formattedSpend: formatINR(control.spend)
+    });
+
+    console.log("[MarketEdge FRONTEND] Spend Formatting Check (Test)", {
+      rawSpend: test.spend,
+      cleanedSpend: cleanNumber(test.spend),
+      formattedSpend: formatINR(test.spend)
+    });
 
     return { control, test, growth, growthPercent };
-  }, [selectedOptimization]);
+  }, [selectedOptimization, hasResults, resultsData]);
 
 
   const handleFileUpload = async (file) => {
+    console.log('🔄 HANDLE FILE UPLOAD CALLED');
+    console.log('File received:', file?.name || 'null');
+
     if (!file) {
       try {
         localStorage.removeItem(STORAGE_KEY);
-      } catch (e) {}
+      } catch (e) { }
 
 
       setUploadedFile(null);
@@ -262,16 +394,23 @@ const MarketEdge = () => {
       setViewMode('current');
       setSelectedHistoryItem(null);
       setChannelLevelConstraints({});
+      setFundsAvailable({}); // Reset funds
+      console.log('✓ File cleared, funds reset to empty object');
       return;
     }
 
 
     setUploadedFile(file);
+    console.log('📄 File set, starting CSV parsing...');
 
 
     try {
       const previewRows = await loadMarketEdgeCsv(file);
       setUploadedPreviewRows(previewRows || []);
+      // ✅ FIX: Store immutable copy of original CSV data
+      setOriginalCsvRows(JSON.parse(JSON.stringify(previewRows || [])));
+      // ✅ FIX: Clear test ranges on new upload
+      setTestRanges({});
 
 
       // Reset view state
@@ -283,98 +422,301 @@ const MarketEdge = () => {
 
       // Prefill editable constraints from CSV
       const next = {};
+      const funds = {}; // Dynamic funds based on CSV channels
+
+      console.log('=== CSV PARSING DEBUG ===');
+      console.log('Preview rows count:', previewRows?.length || 0);
+
       (previewRows || []).forEach((row) => {
         const key = row.channel;
         if (!key) return;
+
+        console.log(`Processing channel: ${key}`);
+        console.log(`  fundsAvailable value:`, row.fundsAvailable);
+        console.log(`  fundsAvailable type:`, typeof row.fundsAvailable);
+
+        // Extract constraints
         next[key] = {
           channelRoas: row.channelRoas ?? '',
           channelMroas: row.channelMroas ?? '',
           channelRoi: row.channelRoi ?? '',
           channelMroi: row.channelMroi ?? ''
         };
+
+        // Extract funds available for test range calculation
+        // fundsAvailable is now a number from CSV parser
+        if (row.fundsAvailable !== null && row.fundsAvailable !== undefined) {
+          const fundsValue = typeof row.fundsAvailable === 'number'
+            ? row.fundsAvailable
+            : parseFloat(row.fundsAvailable);
+
+          console.log(`  Parsed funds value:`, fundsValue);
+
+          if (!isNaN(fundsValue) && fundsValue > 0) {
+            funds[key] = fundsValue;
+            console.log(`  ✓ Funds stored for ${key}: ${fundsValue}`);
+          } else {
+            console.log(`  ✗ Invalid funds value for ${key}`);
+          }
+        } else {
+          console.log(`  ✗ No fundsAvailable in row for ${key}`);
+        }
       });
+
       setChannelLevelConstraints(next);
+      setFundsAvailable(funds);
+
+      console.log('=== FINAL EXTRACTED FUNDS ===');
+      console.log(funds);
+      console.log('===========================');
     } catch (err) {
+      console.error('Error loading CSV:', err);
       setUploadedPreviewRows([]);
       setHasResults(false);
       setResultsData([]);
       setViewMode('current');
       setSelectedHistoryItem(null);
       setChannelLevelConstraints({});
+      setFundsAvailable({});
     }
   };
 
 
-  const handleRunOptimization = () => {
+  const handleSetTestSpread = async () => {
+    console.log('=== SET TEST SPREAD CALLED ===');
+    console.log('testSpreadMin:', testSpreadMin);
+    console.log('testSpreadMax:', testSpreadMax);
+    console.log('fundsAvailable state:', fundsAvailable);
+
+    // Validate test spread values are entered
+    if (!testSpreadMin || !testSpreadMax) {
+      setOptimizationError('Please enter both Test Spread Min and Max values');
+      return;
+    }
+
+    // Validate funds are available from CSV (check if at least ONE channel has funds)
+    // Check if any channel in the dynamic fundsAvailable object has a valid fund value
+    const channelNames = Object.keys(fundsAvailable);
+    const hasFunds = channelNames.some(channel => {
+      const value = fundsAvailable[channel];
+      return value !== null && value !== undefined && value > 0;
+    });
+
+    console.log('hasFunds check result:', hasFunds);
+    console.log('  Channels with funds:', fundsAvailable);
+    console.log('  Channel names:', channelNames);
+
+    if (!hasFunds) {
+      console.error('❌ No funds available - validation failed');
+      setOptimizationError('Please upload a CSV file with Funds Available column first');
+      return;
+    }
+
+    console.log('✓ Validation passed, proceeding with API call');
+
+    setIsOptimizing(true);
+    setOptimizationError(null);
+
+    try {
+      const response = await calculateTestRanges({
+        testSpreadMin,
+        testSpreadMax,
+        fundsAvailable
+      });
+
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to calculate test ranges');
+      }
+
+      const data = response.data;
+      console.log('Test ranges calculated (Client-Side):', data);
+
+      // Map client-side response { "Channel 1": { min, max } } to state
+      const newTestRanges = {};
+      uploadedPreviewRows.forEach((row) => {
+        if (data[row.channel]) {
+          newTestRanges[row.channel] = {
+            min: data[row.channel].min,
+            max: data[row.channel].max
+          };
+        }
+      });
+      setTestRanges(newTestRanges);
+      console.log('Test ranges updated in separate state:', newTestRanges);
+      setOptimizationError(null); // Clear any previous errors
+
+    } catch (error) {
+      console.error('Error calculating test ranges:', error);
+      setOptimizationError(error.message || 'Failed to calculate test ranges');
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
+
+
+  // ✅ FIX: Map sidebar global constraints to backend format
+  const buildGlobalConstraints = (constraintsList) => {
+    const result = {};
+    (constraintsList || []).forEach(c => {
+      if (!c.type) return;
+      const type = c.type.toLowerCase().trim(); // Ensure robust matching
+      const min = c.minimum !== '' && c.minimum !== null && c.minimum !== undefined ? parseFloat(c.minimum) : null;
+      const max = c.maximum !== '' && c.maximum !== null && c.maximum !== undefined ? parseFloat(c.maximum) : null;
+
+      if (type === 'sales' || type === 'gmv') {
+        if (min !== null && !isNaN(min)) result.gmv_lower = min;
+        if (max !== null && !isNaN(max)) result.gmv_upper = max;
+      } else if (type === 'spend') {
+        if (min !== null && !isNaN(min)) result.spend_lower = min;
+        if (max !== null && !isNaN(max)) result.spend_upper = max;
+      } else if (type === 'roas') {
+        if (min !== null && !isNaN(min)) result.roas_lower = min;
+        if (max !== null && !isNaN(max)) result.roas_upper = max;
+      } else if (type === 'mroas') { // ✅ ADDED: mROAS Support
+        if (min !== null && !isNaN(min)) result.mroas_lower = min;
+        if (max !== null && !isNaN(max)) result.mroas_upper = max;
+      }
+    });
+    return result;
+  };
+
+  const handleRunOptimization = async () => {
     // Prevent running without uploaded data
     if (!uploadedFile) return;
     if (!uploadedPreviewRows || uploadedPreviewRows.length === 0) return;
+    if (isOptimizing) return; // Prevent double-click
 
+    // Reset previous errors
+    setOptimizationError(null);
+    setIsOptimizing(true);
 
-    const baseRows = uploadedPreviewRows;
+    try {
+      // STORE CONSTRAINTS BEFORE API CALL TO PRESERVE THEM
+      const constraintSnapshot = { ...channelLevelConstraints };
 
+      // ✅ FIX: Build global constraints from sidebar constraint list
+      const globalConstraints = buildGlobalConstraints(constraints);
+      console.log('Global constraints from sidebar:', globalConstraints);
 
-    const merged = (baseRows || []).map((r, idx) => {
-      const key = r.channel;
-      const c = channelLevelConstraints[key] || {};
-      return {
-        channel: r.channel ?? `Channel ${idx + 1}`,
-        fundsAvailable: r.fundsAvailable ?? '',
-        channelRoas: c.channelRoas ?? r.channelRoas ?? '',
-        channelMroas: c.channelMroas ?? r.channelMroas ?? '',
-        channelRoi: c.channelRoi ?? r.channelRoi ?? '',
-        channelMroi: c.channelMroi ?? r.channelMroi ?? '',
-        testRangeMin: r.testRangeMin ?? '',
-        testRangeMax: r.testRangeMax ?? '',
+      // ✅ FIX: Pass RAW objects to `marketEdgeApi.js`
+      // The API helper `buildOptimizationPayload` will handle:
+      // 1. Mapping fundsAvailable channel names to backend keys (seo, smm, ooh)
+      // 2. Parsing channelLevelConstraints ranges (e.g. "5" -> min: 5, "5-10" -> min:5, max:10)
+      // 3. Mapping channel constraints to backend keys (seo_roas_min, etc.)
 
+      const apiParams = {
+        testSpreadMin: testSpreadMin, // Pass raw string/number, helper converts
+        testSpreadMax: testSpreadMax,
 
-        // AFTER RUN (dummy for now)
-        testSpend: '',
-        gmv: '',
-        roas: '',
-        mroas: '',
-        outChannelRoi: '',
-        outChannelMroi: '',
-        spendRank: '',
-        spendScale: ''
+        // Pass FULL objects
+        fundsAvailable: fundsAvailable,
+        channelLevelConstraints: channelLevelConstraints,
+
+        // Construct global constraints object from current state
+        // Construct global constraints object from current state
+        globalConstraints: globalConstraints
       };
-    });
 
+      console.log('[MarketEdge FRONTEND] Passing Params to API Helper:', apiParams);
 
-    // Add Portfolio row (dummy)
-    const withPortfolio = [
-      ...merged,
-      {
-        channel: 'Portfolio (Total)',
-        fundsAvailable: '',
-        channelRoas: '',
-        channelMroas: '',
-        channelRoi: '',
-        channelMroi: '',
-        testRangeMin: '',
-        testRangeMax: '',
-        testSpend: '',
-        gmv: '',
-        roas: '',
-        mroas: '',
-        outChannelRoi: '',
-        outChannelMroi: '',
-        spendRank: '',
-        spendScale: ''
+      // Call appropriate optimization endpoint based on selected objective
+      let response;
+      if (selectedOptimization === 'sales' || selectedOptimization === 'gmv') {
+        response = await maximizeGMV(apiParams);
+      } else if (selectedOptimization === 'roas') {
+        response = await maximizeROAS(apiParams);
+      } else if (selectedOptimization === 'spend') {
+        response = await minimizeSpend(apiParams);
+      } else {
+        // Default to GMV
+        response = await maximizeGMV(apiParams);
       }
-    ];
+
+      if (!response.success) {
+        throw new Error(response.error || 'Optimization failed');
+      }
+
+      // Transform backend response to frontend format
+      // pass uploadedPreviewRows to merge original data
+      const transformed = transformBackendResponse(response.data, uploadedPreviewRows);
+
+      if (!transformed) {
+        throw new Error('Failed to process optimization results');
+      }
+
+      // Merge with uploaded data to preserve input columns
+      const mergedResults = transformed.rows.map(resultRow => {
+        const isTotal = resultRow.isTotalRow || resultRow.channel === 'Portfolio (Total)';
+        const uploadedRow = isTotal ? {} : (uploadedPreviewRows.find(
+          row => row.channel === resultRow.channel
+        ) || {});
+
+        const constraints = isTotal ? {} : (constraintSnapshot[resultRow.channel] || {});
+
+        // Prioritize backend response, then local state, then uploaded data
+        const displayTestMin = resultRow.testRangeMin ?? (testRanges[resultRow.channel]?.min || uploadedRow.testRangeMin || '');
+        const displayTestMax = resultRow.testRangeMax ?? (testRanges[resultRow.channel]?.max || uploadedRow.testRangeMax || '');
+
+        return {
+          channel: resultRow.channel,
+          ...uploadedRow, // Start with uploaded data
+          ...resultRow,   // Overlay backend results (testSpend, gmv, roas, etc.)
+
+          // Explicitly set test ranges with priority: backend > state > uploaded
+          testRangeMin: displayTestMin,
+          testRangeMax: displayTestMax,
+
+          // Ensure we keep original constraints if not overridden by backend or user edits
+          fundsAvailable: isTotal ? resultRow.fundsAvailable : (uploadedRow.fundsAvailable || ''),
+          channelRoas: constraints.channelRoas || uploadedRow.channelRoas || '',
+          channelMroas: constraints.channelMroas || uploadedRow.channelMroas || '',
+          channelRoi: constraints.channelRoi || uploadedRow.channelRoi || '',
+          channelMroi: constraints.channelMroi || uploadedRow.channelMroi || '',
+        };
+      });
+
+      // Update state with results
+      setResultsData(mergedResults);
+      setOptimizationMetadata(transformed.metadata);
+      setHasResults(true);
+      setViewMode('current');
+      setSelectedHistoryItem(null);
 
 
-    setResultsData(withPortfolio);
-    setHasResults(true);
-    setViewMode('current');
-    setSelectedHistoryItem(null);
+      console.log('Optimization completed successfully:', transformed.metadata);
+      console.log('Preserved constraints:', constraintSnapshot);
+      console.log('MERGED RESULTS:', mergedResults);
+
+      // ✅ Check specifically for 3rd channel result
+      if (mergedResults.length >= 3) {
+        console.log('3rd Channel Result (JSON):', JSON.stringify(mergedResults[2], null, 2));
+        console.log('3rd Channel Spend Scale (Raw):', mergedResults[2].spendScale);
+
+        // Also log the raw API response for the 3rd channel key (ooh)
+        if (response.data && response.data.ooh) {
+          console.log('Backend Raw OOH Data:', JSON.stringify(response.data.ooh, null, 2));
+        }
+      } else {
+        console.warn('⚠️ Less than 3 channels in results!');
+      }
+
+
+    } catch (error) {
+      console.error('Optimization error:', error);
+      setOptimizationError(error.message || 'Optimization failed');
+      setHasResults(false);
+      setResultsData([]);
+      setOptimizationMetadata(null);
+    } finally {
+      setIsOptimizing(false);
+    }
   };
 
 
   const handleReset = () => {
     // Reset only UI selections / constraints / results.
-    // Keep uploadedFile + uploadedPreviewRows + localStorage uploaded data.
+    // Keep uploadedFile + localStorage uploaded data.
+    // ✅ FIX: Restore original CSV data and clear test ranges
 
     setConstraints([]);
     setSelectedOptimization('sales');
@@ -388,9 +730,22 @@ const MarketEdge = () => {
     setSelectedHistoryItem(null);
     setIsHistoryDropdownOpen(false);
 
-    // Reset editable channel constraints back to defaults from uploaded CSV
+    // ✅ FIX: Restore original CSV data from immutable snapshot
+    if (originalCsvRows.length > 0) {
+      setUploadedPreviewRows(JSON.parse(JSON.stringify(originalCsvRows)));
+    }
+
+    // ✅ FIX: Clear test ranges (separate state)
+    setTestRanges({});
+
+    // ✅ FIX: Reset test spread inputs
+    setTestSpreadMin('');
+    setTestSpreadMax('');
+
+    // Reset editable channel constraints back to defaults from ORIGINAL CSV
+    const source = originalCsvRows.length > 0 ? originalCsvRows : (uploadedPreviewRows || []);
     const next = {};
-    (uploadedPreviewRows || []).forEach((row) => {
+    source.forEach((row) => {
       const key = row?.channel;
       if (!key) return;
 
@@ -406,6 +761,10 @@ const MarketEdge = () => {
     setRoasConstraintsEnabled(true);
     setRoiConstraintsEnabled(true);
     setHideChannelLevelConstraints(false);
+
+    // Clear optimization metadata and errors
+    setOptimizationMetadata(null);
+    setOptimizationError(null);
   };
 
 
@@ -547,8 +906,56 @@ const MarketEdge = () => {
 
 
   const beforeRunRows = useMemo(() => {
-    return uploadedPreviewRows || [];
-  }, [uploadedPreviewRows]);
+    if (!uploadedPreviewRows || uploadedPreviewRows.length === 0) return [];
+
+    // Calculate Portfolio Totals for the Preview view
+    let totalFunds = 0;
+    let totalTestMin = 0;
+    let totalTestMax = 0;
+    let hasFunds = false;
+    let hasTestRanges = false;
+
+    uploadedPreviewRows.forEach(row => {
+      // Funds Available
+      // STEP 6: Edge Case Handling - Convert string -> number, handle null/zero
+      const rawFunds = row.fundsAvailable;
+      let funds = 0;
+      let found = false;
+
+      if (rawFunds !== null && rawFunds !== undefined && rawFunds !== '') {
+        funds = typeof rawFunds === 'number'
+          ? rawFunds
+          : parseFloat(String(rawFunds).replace(/,/g, ''));
+        found = true;
+      }
+
+      if (!isNaN(funds) && found) {
+        totalFunds += funds;
+        hasFunds = true;
+      }
+
+      // Test Ranges (check separate state first, then row data)
+      const tMin = testRanges[row.channel]?.min ?? (typeof row.testRangeMin === 'number' ? row.testRangeMin : parseFloat(String(row.testRangeMin || '0').replace(/,/g, '')));
+      const tMax = testRanges[row.channel]?.max ?? (typeof row.testRangeMax === 'number' ? row.testRangeMax : parseFloat(String(row.testRangeMax || '0').replace(/,/g, '')));
+
+      if (!isNaN(tMin) || !isNaN(tMax)) {
+        totalTestMin += isNaN(tMin) ? 0 : tMin;
+        totalTestMax += isNaN(tMax) ? 0 : tMax;
+        hasTestRanges = true;
+      }
+    });
+
+    return [
+      ...uploadedPreviewRows,
+      {
+        channel: 'Portfolio (Total)',
+        isTotalRow: true,
+        fundsAvailable: hasFunds ? totalFunds : '',
+        testRangeMin: hasTestRanges ? totalTestMin : '',
+        testRangeMax: hasTestRanges ? totalTestMax : '',
+      }
+    ];
+  }, [uploadedPreviewRows, testRanges]);
 
 
   const filteredResults = useMemo(() => {
@@ -562,155 +969,79 @@ const MarketEdge = () => {
 
   const beforeRunColSpan = 2 + (showRoasCols ? 2 : 0) + (showRoiCols ? 2 : 0) + 2; // + TestRangeMin/Max
   const afterRunColSpan = 2 + (showRoasCols ? 2 : 0) + (showRoiCols ? 2 : 0) + 10; // + outputs
-  const sanitizeTestSpreadInput = (value) => {
-    const s = String(value ?? '');
-    if (s === '') return '';
-
-    // Allow only digits + optional single decimal point with up to 2 decimal places
-    if (!/^\d*\.?\d*$/.test(s)) return null;
-    const parts = s.split('.');
-    if (parts.length > 2) return null;
-    if (parts[1] && parts[1].length > 2) return null;
-
-    // Enforce max value (<= 25)
-    const n = Number(s);
-    if (Number.isFinite(n) && n > 25) return null;
-
-    return s;
-  };
-  const formatTestSpreadValue = (value) => {
-    if (value === '' || value === null || value === undefined) return '';
-    const num = Number(value);
-    if (!Number.isFinite(num)) return '';
-
-    const clamped = Math.min(num, 25);
-    const rounded = Math.round(clamped * 100) / 100;
-    return rounded.toFixed(2);
-  };
 
 
-    const renderChannelConstraintControlBar = () => {
+
+  const renderChannelConstraintControlBar = () => {
     return (
       <div className="w-full overflow-x-auto">
         <div className="flex flex-nowrap items-center justify-between gap-3 min-w-max">
           <div className="flex flex-nowrap items-center gap-3">
-            <div className="flex flex-col gap-1 border border-gray-200 rounded-lg px-3 py-2 bg-white">
-                        <span className="text-[10px] sm:text-xs font-bold text-gray-900 whitespace-nowrap">
-                          Test Spread
-                        </span>
-
-                        <div className="flex items-center gap-2 flex-nowrap">
-                          <label className="flex items-center gap-2 text-[10px] sm:text-xs text-gray-700 font-medium whitespace-nowrap">
-                            Min
-                            <input
-                              type="text"
-                              inputMode="decimal"
-                              value={testSpreadMin}
-                              onChange={(e) => {
-                                const next = sanitizeTestSpreadInput(e.target.value);
-                                if (next === null) return;
-                                setTestSpreadMin(next);
-                              }}
-                              onBlur={() => setTestSpreadMin(formatTestSpreadValue(testSpreadMin))}
-                              placeholder="0.00"
-                              className="no-spinner w-20 sm:w-24 text-right px-2 py-1 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 whitespace-nowrap"
-                            />
-                          </label>
-
-                          <label className="flex items-center gap-2 text-[10px] sm:text-xs text-gray-700 font-medium whitespace-nowrap">
-                            Max
-                            <input
-                              type="text"
-                              inputMode="decimal"
-                              value={testSpreadMax}
-                              onChange={(e) => {
-                                const next = sanitizeTestSpreadInput(e.target.value);
-                                if (next === null) return;
-                                setTestSpreadMax(next);
-                              }}
-                              onBlur={() => setTestSpreadMax(formatTestSpreadValue(testSpreadMax))}
-                              placeholder="0.00"
-                              className="no-spinner w-20 sm:w-24 text-right px-2 py-1 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 whitespace-nowrap"
-                            />
-                          </label>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setTestSpreadMin(formatTestSpreadValue(testSpreadMin));
-                              setTestSpreadMax(formatTestSpreadValue(testSpreadMax));
-                            }}
-                            className="flex items-center gap-2 px-2 py-2 border border-gray-200 rounded-lg text-[10px] sm:text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
-                          >
-                            Set
-                          </button>
-                        </div>
-                      </div>
           </div>
 
           <div className="flex flex-nowrap items-center gap-3">
             <div className="flex flex-wrap items-center gap-4 border border-gray-200 rounded-lg px-3 py-2 bg-white">
-                        <span className="text-[10px] sm:text-xs font-bold text-gray-900 whitespace-nowrap">
-                          Channel Level Constraints
-                        </span>
+              <span className="text-[10px] sm:text-xs font-bold text-gray-900 whitespace-nowrap">
+                Channel Level Constraints
+              </span>
 
 
-                        <label className="flex items-center gap-2 text-[10px] sm:text-xs text-gray-700 font-medium whitespace-nowrap">
-                          <input
-                            type="checkbox"
-                            checked={roasConstraintsEnabled}
-                            onChange={(e) => {
-                              const checked = e.target.checked;
-                              setRoasConstraintsEnabled(checked);
-                              if (!checked) setHideChannelLevelConstraints(false);
-                            }}
-                            className="w-4 h-4"
-                          />
-                          ROAS
-                        </label>
+              <label className="flex items-center gap-2 text-[10px] sm:text-xs text-gray-700 font-medium whitespace-nowrap">
+                <input
+                  type="checkbox"
+                  checked={roasConstraintsEnabled}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setRoasConstraintsEnabled(checked);
+                    if (!checked) setHideChannelLevelConstraints(false);
+                  }}
+                  className="w-4 h-4"
+                />
+                ROAS
+              </label>
 
 
-                        <label className="flex items-center gap-2 text-[10px] sm:text-xs text-gray-700 font-medium whitespace-nowrap">
-                          <input
-                            type="checkbox"
-                            checked={roiConstraintsEnabled}
-                            onChange={(e) => {
-                              const checked = e.target.checked;
-                              setRoiConstraintsEnabled(checked);
-                              if (!checked) setHideChannelLevelConstraints(false);
-                            }}
-                            className="w-4 h-4"
-                          />
-                          ROI
-                        </label>
-                      </div>
+              <label className="flex items-center gap-2 text-[10px] sm:text-xs text-gray-400 font-medium whitespace-nowrap cursor-not-allowed">
+                <input
+                  type="checkbox"
+                  checked={roiConstraintsEnabled}
+                  disabled={true}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setRoiConstraintsEnabled(checked);
+                    if (!checked) setHideChannelLevelConstraints(false);
+                  }}
+                  className="w-4 h-4 cursor-not-allowed text-gray-300"
+                />
+                ROI (Coming Soon)
+              </label>
+            </div>
             <div className="flex items-center gap-3">
-                        <label
-                          className={`flex items-center gap-2 text-[10px] sm:text-xs font-semibold whitespace-nowrap ${
-                            canToggleHide ? 'text-gray-900 cursor-pointer' : 'text-gray-400 cursor-not-allowed'
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            disabled={!canToggleHide}
-                            checked={hideChannelLevelConstraints}
-                            onChange={(e) => setHideChannelLevelConstraints(e.target.checked)}
-                            className="w-4 h-4"
-                          />
-                          Hide
-                        </label>
+              <label
+                className={`flex items-center gap-2 text-[10px] sm:text-xs font-semibold whitespace-nowrap ${canToggleHide ? 'text-gray-900 cursor-pointer' : 'text-gray-400 cursor-not-allowed'
+                  }`}
+              >
+                <input
+                  type="checkbox"
+                  disabled={!canToggleHide}
+                  checked={hideChannelLevelConstraints}
+                  onChange={(e) => setHideChannelLevelConstraints(e.target.checked)}
+                  className="w-4 h-4"
+                />
+                Hide
+              </label>
 
 
-                        <button
-                          type="button"
-                          onClick={resetChannelConstraints}
-                          className="flex items-center gap-2 px-2 py-2 border border-gray-200 rounded-lg text-[10px] sm:text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
-                          title="Reset channel constraints"
-                        >
-                          <RotateCcw className="w-3.5 h-3.5" strokeWidth={2} />
-                          Reset
-                        </button>
-                      </div>
+              <button
+                type="button"
+                onClick={resetChannelConstraints}
+                className="flex items-center gap-2 px-2 py-2 border border-gray-200 rounded-lg text-[10px] sm:text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+                title="Reset channel constraints"
+              >
+                <RotateCcw className="w-3.5 h-3.5" strokeWidth={2} />
+                Reset
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -723,6 +1054,30 @@ const MarketEdge = () => {
 
 
     if (popupType === 'performance') {
+      const { control, test, growth, growthPercent } = currentPerf;
+
+      console.log("[MarketEdge FRONTEND] Performance Formatting", {
+        controlROI: control.roi,
+        testROI: test.roi,
+        growthROI: growth.roi
+      });
+
+      const formatGrowthPct = (val) => {
+        if (val === null || val === undefined || isNaN(val) || !isFinite(val)) return "-";
+        return val.toFixed(2) + "%";
+      };
+
+      console.log("[MarketEdge FRONTEND] Spend Formatting Check (Popup Rendering)", {
+        controlSpend: {
+          raw: control.spend,
+          formatted: formatINR(control.spend)
+        },
+        testSpend: {
+          raw: test.spend,
+          formatted: formatINR(test.spend)
+        }
+      });
+
       return (
         <div
           className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
@@ -776,12 +1131,6 @@ const MarketEdge = () => {
                       <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
                         mROI
                       </th>
-                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
-                        Avg. Sale Price
-                      </th>
-                      <th className="text-right py-2 sm:py-3 px-3 sm:px-4 font-medium text-gray-900 border-b-2 border-gray-300">
-                        Discount
-                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white">
@@ -790,28 +1139,22 @@ const MarketEdge = () => {
                         Control
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        ₹ 7,07,72,209
+                        {formatINR(control.sales)}
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        ₹ 80,59,555
+                        {formatINR(control.spend)}
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        8.78
+                        {formatNumber(control.roas, 2)}
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        9.085
+                        {formatNumber(control.mroas, 2)}
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        9.01
+                        {formatNumber(control.roi, 2)}
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        10.76
-                      </td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        ₹ 26,132
-                      </td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        ₹ 2,138
+                        {formatNumber(control.mroi, 2)}
                       </td>
                     </tr>
                     <tr className="border-b border-gray-200">
@@ -819,86 +1162,68 @@ const MarketEdge = () => {
                         Test
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        ₹ 7,32,77,196
+                        {formatINR(test.sales)}
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        ₹ 80,59,555
+                        {formatINR(test.spend)}
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        9.09
+                        {formatNumber(test.roas, 2)}
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        9.085
+                        {formatNumber(test.mroas, 2)}
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        9.12
+                        -
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        10.76
-                      </td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        ₹ 27,017
-                      </td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        ₹ 2,370
+                        -
                       </td>
                     </tr>
                     <tr className="border-b border-gray-200">
                       <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">
                         Growth
                       </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700 font-medium">
+                        {formatINR(growth.sales)}
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700 font-medium">
+                        {formatINR(growth.spend)}
+                      </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        ₹ 25,04,987
+                        {formatNumber(growth.roas, 2)}
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
+                        {formatNumber(growth.mroas, 2)}
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
                         -
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        0.31
-                      </td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
                         -
-                      </td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        0.11
-                      </td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        -
-                      </td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        885
-                      </td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        232.00
                       </td>
                     </tr>
                     <tr>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">
                         Growth %
                       </td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        3.54%
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700 font-medium">
+                        {formatGrowthPct(growthPercent.sales)}
+                      </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700 font-medium">
+                        {formatGrowthPct(growthPercent.spend)}
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        0.00%
+                        {formatGrowthPct(growthPercent.roas)}
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        3.54%
+                        {formatGrowthPct(growthPercent.mroas)}
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        0.00%
+                        -
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        1.22%
-                      </td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        0.00%
-                      </td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        3.39%
-                      </td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        10.85%
+                        -
                       </td>
                     </tr>
                   </tbody>
@@ -998,16 +1323,16 @@ const MarketEdge = () => {
                         ₹ 25,79,058
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        9.60
+                        {formatNumber(9.60)}
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        9.085
+                        {formatNumber(9.085, 3)}
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        9.20
+                        {formatNumber(9.20)}
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        10.76
+                        {formatNumber(10.76)}
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
                         ₹ 27,130
@@ -1027,16 +1352,16 @@ const MarketEdge = () => {
                         ₹ 59,64,071
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        9.83
+                        {formatNumber(9.83)}
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        9.085
+                        {formatNumber(9.085, 3)}
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        9.12
+                        {formatNumber(9.12)}
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        10.68
+                        {formatNumber(10.68)}
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
                         ₹ 27,068
@@ -1127,10 +1452,10 @@ const MarketEdge = () => {
                         Control
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        ₹11.92
+                        {formatNumber(11.92)}
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        ₹0.93
+                        {formatNumber(0.93)}
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-left text-gray-700">
                         {' '}
@@ -1141,10 +1466,10 @@ const MarketEdge = () => {
                         Test
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        ₹8.77
+                        {formatNumber(8.77)}
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        ₹0.52
+                        {formatNumber(0.52)}
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-left text-gray-700">
                         {' '}
@@ -1155,10 +1480,10 @@ const MarketEdge = () => {
                         Increamental
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        ₹3.47
+                        {formatNumber(3.47)}
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">
-                        -₹0.17
+                        -{formatNumber(0.17)}
                       </td>
                       <td className="py-2 sm:py-3 px-3 sm:px-4 text-left text-gray-700">
                         {' '}
@@ -1302,28 +1627,34 @@ const MarketEdge = () => {
       {viewMode !== 'history' && (
 
 
-            <MarketEdgeSidebar
-        isOpen={sidebarOpen}
-        toggleSidebar={toggleSidebar}
-        uploadedFile={uploadedFile}
-        onFileUpload={handleFileUpload}
-        regionLevels={regionLevels}
-        selectedRegionLevels={selectedRegionLevels}
-        onSelectedRegionLevelsChange={setSelectedRegionLevels}
-        channels={channels}
-        selectedChannels={selectedChannels}
-        onSelectedChannelsChange={setSelectedChannels}
-        selectedOptimization={selectedOptimization}
-        onOptimizationChange={setSelectedOptimization}
-        constraints={constraints}
-        onConstraintsChange={setConstraints}
-        onRunOptimization={handleRunOptimization}
-        onReset={handleReset}
-      />
+        <MarketEdgeSidebar
+          isOpen={sidebarOpen}
+          toggleSidebar={toggleSidebar}
+          uploadedFile={uploadedFile}
+          onFileUpload={handleFileUpload}
+          regionLevels={regionLevels}
+          selectedRegionLevels={selectedRegionLevels}
+          onSelectedRegionLevelsChange={setSelectedRegionLevels}
+          channels={channels}
+          selectedChannels={selectedChannels}
+          onSelectedChannelsChange={setSelectedChannels}
+          selectedOptimization={selectedOptimization}
+          onOptimizationChange={setSelectedOptimization}
+          constraints={constraints}
+          onConstraintsChange={setConstraints}
+          onRunOptimization={handleRunOptimization}
+          onReset={handleReset}
+          isOptimizing={isOptimizing}
+          testSpreadMin={testSpreadMin}
+          testSpreadMax={testSpreadMax}
+          onTestSpreadMinChange={setTestSpreadMin}
+          onTestSpreadMaxChange={setTestSpreadMax}
+          onSetTestSpread={handleSetTestSpread}
+        />
 
 
       )}
-<Navbar
+      <Navbar
         toggleSidebar={toggleSidebar}
         showMenuButton={viewMode !== 'history'}
         currentProduct="marketedge"
@@ -1334,6 +1665,56 @@ const MarketEdge = () => {
       <div
         className={`pt-16 transition-all duration-300 ${viewMode === 'history' ? 'ml-0' : 'ml-0 lg:ml-[320px]'}`}
       >
+        {/* Error Notification */}
+        {optimizationError && (
+          <div className="bg-red-50 border-l-4 border-red-500 p-4 mx-4 sm:mx-6 mt-4 rounded-lg shadow-sm">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <AlertCircle className="h-5 w-5 text-red-400" />
+              </div>
+              <div className="ml-3 flex-1">
+                <h3 className="text-sm font-medium text-red-800">Optimization Error</h3>
+                <div className="mt-2 text-sm text-red-700">
+                  <p>{optimizationError}</p>
+                </div>
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={() => setOptimizationError(null)}
+                    className="text-sm font-medium text-red-800 hover:text-red-600 underline"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Success/Info Notification for Metadata */}
+        {optimizationMetadata && hasResults && (
+          <div className="bg-green-50 border-l-4 border-green-500 p-4 mx-4 sm:mx-6 mt-4 rounded-lg shadow-sm">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <CheckCircle2 className="h-5 w-5 text-green-400" />
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-green-800">Optimization Completed</h3>
+                <div className="mt-2 text-sm text-green-700">
+                  <p className="font-semibold">{optimizationMetadata.objective}</p>
+                  {console.log("[MarketEdge FRONTEND] Display Stats", { ...optimizationMetadata })}
+                  <p className="mt-1">
+                    Time: {optimizationMetadata.optimizationTime?.toFixed(2)}s |
+                    Iterations: {new Intl.NumberFormat('en-IN').format(optimizationMetadata.totalIterations || 0)} |
+                    Valid: {new Intl.NumberFormat('en-IN').format(optimizationMetadata.validSolutions || 0)} |
+                    Pass Rate: {optimizationMetadata.passRate?.toFixed(2)}%
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="p-4 sm:p-6 space-y-4">
           {viewMode === 'history' && selectedHistoryItem && (
             <div className="relative bg-white rounded-lg p-3 sm:p-4 shadow-sm border-2 border-gray-300">
@@ -1403,12 +1784,12 @@ const MarketEdge = () => {
                             <td className="py-2 px-3 font-medium text-gray-700">Sales</td>
                             <td className="py-2 px-3 text-right text-gray-900 whitespace-nowrap">
                               {historyConstraintMap.sales && historyConstraintMap.sales.split('-').length === 2
-                                ? `₹ ${formatValue(historyConstraintMap.sales.split('-')[0])}`
+                                ? formatCurrency(historyConstraintMap.sales.split('-')[0])
                                 : '-'}
                             </td>
                             <td className="py-2 px-3 text-right text-gray-900 whitespace-nowrap">
                               {historyConstraintMap.sales && historyConstraintMap.sales.split('-').length === 2
-                                ? `₹ ${formatValue(historyConstraintMap.sales.split('-')[1])}`
+                                ? formatCurrency(historyConstraintMap.sales.split('-')[1])
                                 : '-'}
                             </td>
                           </tr>
@@ -1416,12 +1797,12 @@ const MarketEdge = () => {
                             <td className="py-2 px-3 font-medium text-gray-700">Spend</td>
                             <td className="py-2 px-3 text-right text-gray-900 whitespace-nowrap">
                               {historyConstraintMap.spend && historyConstraintMap.spend.split('-').length === 2
-                                ? formatValue(historyConstraintMap.spend.split('-')[0])
+                                ? formatCurrency(historyConstraintMap.spend.split('-')[0])
                                 : '-'}
                             </td>
                             <td className="py-2 px-3 text-right text-gray-900 whitespace-nowrap">
                               {historyConstraintMap.spend && historyConstraintMap.spend.split('-').length === 2
-                                ? formatValue(historyConstraintMap.spend.split('-')[1])
+                                ? formatCurrency(historyConstraintMap.spend.split('-')[1])
                                 : '-'}
                             </td>
                           </tr>
@@ -1429,12 +1810,12 @@ const MarketEdge = () => {
                             <td className="py-2 px-3 font-medium text-gray-700">ROAS</td>
                             <td className="py-2 px-3 text-right text-gray-900 whitespace-nowrap">
                               {historyConstraintMap.roas && historyConstraintMap.roas.split('-').length === 2
-                                ? formatValue(historyConstraintMap.roas.split('-')[0])
+                                ? formatNumber(historyConstraintMap.roas.split('-')[0])
                                 : '-'}
                             </td>
                             <td className="py-2 px-3 text-right text-gray-900 whitespace-nowrap">
                               {historyConstraintMap.roas && historyConstraintMap.roas.split('-').length === 2
-                                ? formatValue(historyConstraintMap.roas.split('-')[1])
+                                ? formatNumber(historyConstraintMap.roas.split('-')[1])
                                 : '-'}
                             </td>
                           </tr>
@@ -1442,12 +1823,12 @@ const MarketEdge = () => {
                             <td className="py-2 px-3 font-medium text-gray-700">mROAS</td>
                             <td className="py-2 px-3 text-right text-gray-900 whitespace-nowrap">
                               {historyConstraintMap.mroas && historyConstraintMap.mroas.split('-').length === 2
-                                ? formatValue(historyConstraintMap.mroas.split('-')[0])
+                                ? formatNumber(historyConstraintMap.mroas.split('-')[0])
                                 : '-'}
                             </td>
                             <td className="py-2 px-3 text-right text-gray-900 whitespace-nowrap">
                               {historyConstraintMap.mroas && historyConstraintMap.mroas.split('-').length === 2
-                                ? formatValue(historyConstraintMap.mroas.split('-')[1])
+                                ? formatNumber(historyConstraintMap.mroas.split('-')[1])
                                 : '-'}
                             </td>
                           </tr>
@@ -1455,12 +1836,12 @@ const MarketEdge = () => {
                             <td className="py-2 px-3 font-medium text-gray-700">ROI</td>
                             <td className="py-2 px-3 text-right text-gray-900 whitespace-nowrap">
                               {historyConstraintMap.roi && historyConstraintMap.roi.split('-').length === 2
-                                ? formatValue(historyConstraintMap.roi.split('-')[0])
+                                ? formatNumber(historyConstraintMap.roi.split('-')[0])
                                 : '-'}
                             </td>
                             <td className="py-2 px-3 text-right text-gray-900 whitespace-nowrap">
                               {historyConstraintMap.roi && historyConstraintMap.roi.split('-').length === 2
-                                ? formatValue(historyConstraintMap.roi.split('-')[1])
+                                ? formatNumber(historyConstraintMap.roi.split('-')[1])
                                 : '-'}
                             </td>
                           </tr>
@@ -1468,12 +1849,12 @@ const MarketEdge = () => {
                             <td className="py-2 px-3 font-medium text-gray-700">mROI</td>
                             <td className="py-2 px-3 text-right text-gray-900 whitespace-nowrap">
                               {historyConstraintMap.mroi && historyConstraintMap.mroi.split('-').length === 2
-                                ? formatValue(historyConstraintMap.mroi.split('-')[0])
+                                ? formatNumber(historyConstraintMap.mroi.split('-')[0])
                                 : '-'}
                             </td>
                             <td className="py-2 px-3 text-right text-gray-900 whitespace-nowrap">
                               {historyConstraintMap.mroi && historyConstraintMap.mroi.split('-').length === 2
-                                ? formatValue(historyConstraintMap.mroi.split('-')[1])
+                                ? formatNumber(historyConstraintMap.mroi.split('-')[1])
                                 : '-'}
                             </td>
                           </tr>
@@ -1502,12 +1883,12 @@ const MarketEdge = () => {
                               <td className="py-2 px-3 font-medium text-gray-700">Sales</td>
                               <td className="py-2 px-3 text-right text-gray-900 whitespace-nowrap">
                                 {historyConstraintMap.sales && historyConstraintMap.sales.split('-').length === 2
-                                  ? `₹ ${formatValue(historyConstraintMap.sales.split('-')[0])}`
+                                  ? formatCurrency(historyConstraintMap.sales.split('-')[0])
                                   : '-'}
                               </td>
                               <td className="py-2 px-3 text-right text-gray-900 whitespace-nowrap">
                                 {historyConstraintMap.sales && historyConstraintMap.sales.split('-').length === 2
-                                  ? `₹ ${formatValue(historyConstraintMap.sales.split('-')[1])}`
+                                  ? formatCurrency(historyConstraintMap.sales.split('-')[1])
                                   : '-'}
                               </td>
                             </tr>
@@ -1515,12 +1896,12 @@ const MarketEdge = () => {
                               <td className="py-2 px-3 font-medium text-gray-700">Spend</td>
                               <td className="py-2 px-3 text-right text-gray-900">
                                 {historyConstraintMap.spend && historyConstraintMap.spend.split('-').length === 2
-                                  ? formatValue(historyConstraintMap.spend.split('-')[0])
+                                  ? formatCurrency(historyConstraintMap.spend.split('-')[0])
                                   : '-'}
                               </td>
                               <td className="py-2 px-3 text-right text-gray-900">
                                 {historyConstraintMap.spend && historyConstraintMap.spend.split('-').length === 2
-                                  ? formatValue(historyConstraintMap.spend.split('-')[1])
+                                  ? formatCurrency(historyConstraintMap.spend.split('-')[1])
                                   : '-'}
                               </td>
                             </tr>
@@ -1528,12 +1909,12 @@ const MarketEdge = () => {
                               <td className="py-2 px-3 font-medium text-gray-700">ROAS</td>
                               <td className="py-2 px-3 text-right text-gray-900">
                                 {historyConstraintMap.roas && historyConstraintMap.roas.split('-').length === 2
-                                  ? formatValue(historyConstraintMap.roas.split('-')[0])
+                                  ? formatNumber(historyConstraintMap.roas.split('-')[0])
                                   : '-'}
                               </td>
                               <td className="py-2 px-3 text-right text-gray-900">
                                 {historyConstraintMap.roas && historyConstraintMap.roas.split('-').length === 2
-                                  ? formatValue(historyConstraintMap.roas.split('-')[1])
+                                  ? formatNumber(historyConstraintMap.roas.split('-')[1])
                                   : '-'}
                               </td>
                             </tr>
@@ -1561,12 +1942,12 @@ const MarketEdge = () => {
                               <td className="py-2 px-3 font-medium text-gray-700">mROAS</td>
                               <td className="py-2 px-3 text-right text-gray-900">
                                 {historyConstraintMap.mroas && historyConstraintMap.mroas.split('-').length === 2
-                                  ? formatValue(historyConstraintMap.mroas.split('-')[0])
+                                  ? formatNumber(historyConstraintMap.mroas.split('-')[0])
                                   : '-'}
                               </td>
                               <td className="py-2 px-3 text-right text-gray-900">
                                 {historyConstraintMap.mroas && historyConstraintMap.mroas.split('-').length === 2
-                                  ? formatValue(historyConstraintMap.mroas.split('-')[1])
+                                  ? formatNumber(historyConstraintMap.mroas.split('-')[1])
                                   : '-'}
                               </td>
                             </tr>
@@ -1574,12 +1955,12 @@ const MarketEdge = () => {
                               <td className="py-2 px-3 font-medium text-gray-700">ROI</td>
                               <td className="py-2 px-3 text-right text-gray-900">
                                 {historyConstraintMap.roi && historyConstraintMap.roi.split('-').length === 2
-                                  ? formatValue(historyConstraintMap.roi.split('-')[0])
+                                  ? formatNumber(historyConstraintMap.roi.split('-')[0])
                                   : '-'}
                               </td>
                               <td className="py-2 px-3 text-right text-gray-900">
                                 {historyConstraintMap.roi && historyConstraintMap.roi.split('-').length === 2
-                                  ? formatValue(historyConstraintMap.roi.split('-')[1])
+                                  ? formatNumber(historyConstraintMap.roi.split('-')[1])
                                   : '-'}
                               </td>
                             </tr>
@@ -1587,12 +1968,12 @@ const MarketEdge = () => {
                               <td className="py-2 px-3 font-medium text-gray-700">mROI</td>
                               <td className="py-2 px-3 text-right text-gray-900">
                                 {historyConstraintMap.mroi && historyConstraintMap.mroi.split('-').length === 2
-                                  ? formatValue(historyConstraintMap.mroi.split('-')[0])
+                                  ? formatNumber(historyConstraintMap.mroi.split('-')[0])
                                   : '-'}
                               </td>
                               <td className="py-2 px-3 text-right text-gray-900">
                                 {historyConstraintMap.mroi && historyConstraintMap.mroi.split('-').length === 2
-                                  ? formatValue(historyConstraintMap.mroi.split('-')[1])
+                                  ? formatNumber(historyConstraintMap.mroi.split('-')[1])
                                   : '-'}
                               </td>
                             </tr>
@@ -1625,11 +2006,10 @@ const MarketEdge = () => {
                                 prev.includes(lvl) ? prev.filter((x) => x !== lvl) : [...prev, lvl]
                               )
                             }
-                            className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-all ${
-                              active
-                                ? 'bg-gray-900 text-white border-gray-900'
-                                : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400'
-                            }`}
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-all ${active
+                              ? 'bg-gray-900 text-white border-gray-900'
+                              : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400'
+                              }`}
                           >
                             {lvl}
                           </button>
@@ -1656,11 +2036,10 @@ const MarketEdge = () => {
                                 prev.includes(ch) ? prev.filter((x) => x !== ch) : [...prev, ch]
                               )
                             }
-                            className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-all ${
-                              active
-                                ? 'bg-gray-900 text-white border-gray-900'
-                                : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400'
-                            }`}
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-all ${active
+                              ? 'bg-gray-900 text-white border-gray-900'
+                              : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400'
+                              }`}
                           >
                             {ch}
                           </button>
@@ -1687,9 +2066,8 @@ const MarketEdge = () => {
                       <History className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                       <span>View History ({mockPastIterations.length})</span>
                       <ChevronRight
-                        className={`w-3 h-3 sm:w-3.5 sm:h-3.5 transform transition-transform ${
-                          isHistoryDropdownOpen ? 'rotate-90' : ''
-                        }`}
+                        className={`w-3 h-3 sm:w-3.5 sm:h-3.5 transform transition-transform ${isHistoryDropdownOpen ? 'rotate-90' : ''
+                          }`}
                       />
                     </button>
 
@@ -1765,8 +2143,6 @@ const MarketEdge = () => {
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
               <div className="p-3 sm:p-4 border-b border-gray-200 bg-gray-50 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
                 <div>
-                  <h3 className="text-sm sm:text-base font-bold text-gray-900">Data Upload</h3>
-                  <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5">{uploadedFile?.name}</p>
                 </div>
 
 
@@ -1864,16 +2240,42 @@ const MarketEdge = () => {
                       </tr>
                     ) : (
                       beforeRunRows.map((row, idx) => {
-                        const rowBg = getRowHighlight(row.channel);
+                        const isTotal = row.isTotalRow || row.channel === 'Portfolio (Total)';
+
+                        // STEP 5: Add Debug Logs
+                        if (isTotal) {
+                          const channelFunds = uploadedPreviewRows
+                            .filter(r => r.channel !== 'Portfolio (Total)')
+                            .reduce((acc, ch) => {
+                              acc[ch.channel] = ch.fundsAvailable;
+                              return acc;
+                            }, {});
+
+                          console.log("[MarketEdge FRONTEND] Portfolio Funds Calc", {
+                            channelFunds,
+                            totalFunds: row.fundsAvailable
+                          });
+
+                          console.log("[MarketEdge FRONTEND] Portfolio Calc", {
+                            fundsTotal: row.fundsAvailable,
+                            testRangeMinTotal: row.testRangeMin,
+                            testRangeMaxTotal: row.testRangeMax,
+                            totalGMV: row.gmv,
+                            totalSpend: row.testSpend,
+                            portfolioROAS: row.roas,
+                            portfoliomROAS: row.mroas
+                          });
+                        }
+
+                        const rowBg = isTotal ? 'bg-gray-100' : getRowHighlight(row.channel);
                         return (
                           <tr
                             key={idx}
-                            className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${rowBg}`}
+                            className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${rowBg} ${isTotal ? 'font-bold' : ''}`}
                           >
                             <td
-                              className={`sticky left-0 z-10 py-2 sm:py-2.5 px-2 sm:px-3 font-medium text-gray-900 border-r border-gray-200 whitespace-nowrap ${
-                                rowBg || 'bg-white'
-                              }`}
+                              className={`sticky left-0 z-10 py-2 sm:py-2.5 px-2 sm:px-3 font-medium text-gray-900 border-r border-gray-200 whitespace-nowrap ${rowBg || 'bg-white'
+                                } ${isTotal ? 'font-bold bg-gray-100' : ''}`}
                             >
                               {row.channel || '-'}
                             </td>
@@ -1882,33 +2284,41 @@ const MarketEdge = () => {
                             <td
                               className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 border-r border-gray-200 whitespace-nowrap ${rowBg}`}
                             >
-                              {row.fundsAvailable || '-'}
+                              {formatCurrency(row.fundsAvailable)}
                             </td>
 
 
                             {showRoasCols && (
                               <>
                                 <td className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right ${rowBg}`}>
-                                  <input
-                                    className="no-spinner w-24 sm:w-28 text-right px-2 py-1 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 whitespace-nowrap"
-                                    value={channelLevelConstraints[row.channel]?.channelRoas ?? ''}
-                                    onChange={(e) =>
-                                      updateChannelConstraint(row.channel, 'channelRoas', e.target.value)
-                                    }
-                                    placeholder="-"
-                                  />
+                                  {isTotal ? (
+                                    <span className="text-gray-400">-</span>
+                                  ) : (
+                                    <input
+                                      className="no-spinner w-24 sm:w-28 text-right px-2 py-1 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 whitespace-nowrap"
+                                      value={channelLevelConstraints[row.channel]?.channelRoas ?? ''}
+                                      onChange={(e) =>
+                                        updateChannelConstraint(row.channel, 'channelRoas', e.target.value)
+                                      }
+                                      placeholder="-"
+                                    />
+                                  )}
                                 </td>
 
 
                                 <td className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right ${rowBg}`}>
-                                  <input
-                                    className="no-spinner w-24 sm:w-28 text-right px-2 py-1 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 whitespace-nowrap"
-                                    value={channelLevelConstraints[row.channel]?.channelMroas ?? ''}
-                                    onChange={(e) =>
-                                      updateChannelConstraint(row.channel, 'channelMroas', e.target.value)
-                                    }
-                                    placeholder="-"
-                                  />
+                                  {isTotal ? (
+                                    <span className="text-gray-400">-</span>
+                                  ) : (
+                                    <input
+                                      className="no-spinner w-24 sm:w-28 text-right px-2 py-1 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 whitespace-nowrap"
+                                      value={channelLevelConstraints[row.channel]?.channelMroas ?? ''}
+                                      onChange={(e) =>
+                                        updateChannelConstraint(row.channel, 'channelMroas', e.target.value)
+                                      }
+                                      placeholder="-"
+                                    />
+                                  )}
                                 </td>
                               </>
                             )}
@@ -1917,28 +2327,36 @@ const MarketEdge = () => {
                             {showRoiCols && (
                               <>
                                 <td className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right ${rowBg}`}>
-                                  <input
-                                    className="no-spinner w-24 sm:w-28 text-right px-2 py-1 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 whitespace-nowrap"
-                                    value={channelLevelConstraints[row.channel]?.channelRoi ?? ''}
-                                    onChange={(e) =>
-                                      updateChannelConstraint(row.channel, 'channelRoi', e.target.value)
-                                    }
-                                    placeholder="-"
-                                  />
+                                  {isTotal ? (
+                                    <span className="text-gray-400">-</span>
+                                  ) : (
+                                    <input
+                                      className="no-spinner w-24 sm:w-28 text-right px-2 py-1 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 whitespace-nowrap"
+                                      value={channelLevelConstraints[row.channel]?.channelRoi ?? ''}
+                                      onChange={(e) =>
+                                        updateChannelConstraint(row.channel, 'channelRoi', e.target.value)
+                                      }
+                                      placeholder="-"
+                                    />
+                                  )}
                                 </td>
 
 
                                 <td
                                   className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right border-r border-gray-200 ${rowBg}`}
                                 >
-                                  <input
-                                    className="no-spinner w-24 sm:w-28 text-right px-2 py-1 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 whitespace-nowrap"
-                                    value={channelLevelConstraints[row.channel]?.channelMroi ?? ''}
-                                    onChange={(e) =>
-                                      updateChannelConstraint(row.channel, 'channelMroi', e.target.value)
-                                    }
-                                    placeholder="-"
-                                  />
+                                  {isTotal ? (
+                                    <span className="text-gray-400">-</span>
+                                  ) : (
+                                    <input
+                                      className="no-spinner w-24 sm:w-28 text-right px-2 py-1 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 whitespace-nowrap"
+                                      value={channelLevelConstraints[row.channel]?.channelMroi ?? ''}
+                                      onChange={(e) =>
+                                        updateChannelConstraint(row.channel, 'channelMroi', e.target.value)
+                                      }
+                                      placeholder="-"
+                                    />
+                                  )}
                                 </td>
                               </>
                             )}
@@ -1947,12 +2365,12 @@ const MarketEdge = () => {
                             <td
                               className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}
                             >
-                              {row.testRangeMin ?? '-'}
+                              {formatCurrency(testRanges[row.channel]?.min ?? row.testRangeMin)}
                             </td>
                             <td
                               className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}
                             >
-                              {row.testRangeMax ?? '-'}
+                              {formatCurrency(testRanges[row.channel]?.max ?? row.testRangeMax)}
                             </td>
                           </tr>
                         );
@@ -2001,7 +2419,7 @@ const MarketEdge = () => {
                   <div className="mt-1 text-[10px] sm:text-[11px] text-gray-600 flex items-center justify-between gap-2">
                     <span className="whitespace-nowrap">Top channel</span>
                     <span className="font-semibold text-gray-900 whitespace-nowrap">
-                      ₹{formatMoney(24770273)}
+                      {formatCurrency(24770273)}
                     </span>
                   </div>
                 </div>
@@ -2019,7 +2437,9 @@ const MarketEdge = () => {
                   </div>
                   <div className="mt-1 text-[10px] sm:text-[11px] text-gray-600">
                     Sales/Spend:{' '}
-                    <span className="font-semibold text-gray-900">₹11.92 → ₹8.77</span>
+                    <span className="font-semibold text-gray-900">
+                      {formatCurrency(11.92)} → {formatCurrency(8.77)}
+                    </span>
                   </div>
                 </div>
 
@@ -2043,12 +2463,8 @@ const MarketEdge = () => {
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                 <div className="p-3 sm:p-4 border-b border-gray-200 bg-gray-50 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
                   <div>
-                    <h3 className="text-sm sm:text-base font-bold text-gray-900">
-                      Channel Level Constraints
-                    </h3>
-                    <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5">
-                                          </p>
                   </div>
+
 
 
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
@@ -2169,18 +2585,44 @@ const MarketEdge = () => {
                         </tr>
                       ) : (
                         filteredResults.map((row, idx) => {
-                          const rowBg = getRowHighlight(row.channel);
+                          const isTotal = row.isTotalRow || row.channel === 'Portfolio (Total)';
+
+                          // STEP 5: Add Debug Logs
+                          if (isTotal) {
+                            const channelFunds = filteredResults
+                              .filter(r => r.channel !== 'Portfolio (Total)')
+                              .reduce((acc, ch) => {
+                                acc[ch.channel] = ch.fundsAvailable;
+                                return acc;
+                              }, {});
+
+                            console.log("[MarketEdge FRONTEND] Portfolio Funds Calc", {
+                              channelFunds,
+                              totalFunds: row.fundsAvailable
+                            });
+
+                            console.log("[MarketEdge FRONTEND] Portfolio Calc", {
+                              fundsTotal: row.fundsAvailable,
+                              testRangeMinTotal: row.testRangeMin,
+                              testRangeMaxTotal: row.testRangeMax,
+                              totalGMV: row.gmv,
+                              totalSpend: row.testSpend,
+                              portfolioROAS: row.roas,
+                              portfoliomROAS: row.mroas
+                            });
+                          }
+
+                          const rowBg = isTotal ? 'bg-gray-100' : getRowHighlight(row.channel);
 
 
                           return (
                             <tr
                               key={idx}
-                              className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${rowBg}`}
+                              className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${rowBg} ${isTotal ? 'font-bold' : ''}`}
                             >
                               <td
-                                className={`sticky left-0 z-10 py-2 sm:py-2.5 px-2 sm:px-3 font-medium text-gray-900 border-r border-gray-200 whitespace-nowrap ${
-                                  rowBg || 'bg-white'
-                                }`}
+                                className={`sticky left-0 z-10 py-2 sm:py-2.5 px-2 sm:px-3 font-medium text-gray-900 border-r border-gray-200 whitespace-nowrap ${rowBg || 'bg-white'
+                                  } ${isTotal ? 'font-bold bg-gray-100' : ''}`}
                               >
                                 {row.channel || '-'}
                               </td>
@@ -2189,31 +2631,39 @@ const MarketEdge = () => {
                               <td
                                 className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 border-r border-gray-200 whitespace-nowrap ${rowBg}`}
                               >
-                                {row.fundsAvailable || '-'}
+                                {formatCurrency(row.fundsAvailable)}
                               </td>
 
 
                               {showRoasCols && (
                                 <>
                                   <td className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right ${rowBg}`}>
-                                    <input
-                                      className="no-spinner w-24 sm:w-28 text-right px-2 py-1 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 whitespace-nowrap"
-                                      value={channelLevelConstraints[row.channel]?.channelRoas ?? ''}
-                                      onChange={(e) =>
-                                        updateChannelConstraint(row.channel, 'channelRoas', e.target.value)
-                                      }
-                                      placeholder="-"
-                                    />
+                                    {isTotal ? (
+                                      <span className="text-gray-400">-</span>
+                                    ) : (
+                                      <input
+                                        className="no-spinner w-24 sm:w-28 text-right px-2 py-1 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 whitespace-nowrap"
+                                        value={channelLevelConstraints[row.channel]?.channelRoas ?? ''}
+                                        onChange={(e) =>
+                                          updateChannelConstraint(row.channel, 'channelRoas', e.target.value)
+                                        }
+                                        placeholder="-"
+                                      />
+                                    )}
                                   </td>
                                   <td className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right ${rowBg}`}>
-                                    <input
-                                      className="no-spinner w-24 sm:w-28 text-right px-2 py-1 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 whitespace-nowrap"
-                                      value={channelLevelConstraints[row.channel]?.channelMroas ?? ''}
-                                      onChange={(e) =>
-                                        updateChannelConstraint(row.channel, 'channelMroas', e.target.value)
-                                      }
-                                      placeholder="-"
-                                    />
+                                    {isTotal ? (
+                                      <span className="text-gray-400">-</span>
+                                    ) : (
+                                      <input
+                                        className="no-spinner w-24 sm:w-28 text-right px-2 py-1 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 whitespace-nowrap"
+                                        value={channelLevelConstraints[row.channel]?.channelMroas ?? ''}
+                                        onChange={(e) =>
+                                          updateChannelConstraint(row.channel, 'channelMroas', e.target.value)
+                                        }
+                                        placeholder="-"
+                                      />
+                                    )}
                                   </td>
                                 </>
                               )}
@@ -2222,28 +2672,36 @@ const MarketEdge = () => {
                               {showRoiCols && (
                                 <>
                                   <td className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right ${rowBg}`}>
-                                    <input
-                                      className="no-spinner w-24 sm:w-28 text-right px-2 py-1 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 whitespace-nowrap"
-                                      value={channelLevelConstraints[row.channel]?.channelRoi ?? ''}
-                                      onChange={(e) =>
-                                        updateChannelConstraint(row.channel, 'channelRoi', e.target.value)
-                                      }
-                                      placeholder="-"
-                                    />
+                                    {isTotal ? (
+                                      <span className="text-gray-400">-</span>
+                                    ) : (
+                                      <input
+                                        className="no-spinner w-24 sm:w-28 text-right px-2 py-1 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 whitespace-nowrap"
+                                        value={channelLevelConstraints[row.channel]?.channelRoi ?? ''}
+                                        onChange={(e) =>
+                                          updateChannelConstraint(row.channel, 'channelRoi', e.target.value)
+                                        }
+                                        placeholder="-"
+                                      />
+                                    )}
                                   </td>
 
 
                                   <td
                                     className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right border-r border-gray-200 ${rowBg}`}
                                   >
-                                    <input
-                                      className="no-spinner w-24 sm:w-28 text-right px-2 py-1 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 whitespace-nowrap"
-                                      value={channelLevelConstraints[row.channel]?.channelMroi ?? ''}
-                                      onChange={(e) =>
-                                        updateChannelConstraint(row.channel, 'channelMroi', e.target.value)
-                                      }
-                                      placeholder="-"
-                                    />
+                                    {isTotal ? (
+                                      <span className="text-gray-400">-</span>
+                                    ) : (
+                                      <input
+                                        className="no-spinner w-24 sm:w-28 text-right px-2 py-1 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 whitespace-nowrap"
+                                        value={channelLevelConstraints[row.channel]?.channelMroi ?? ''}
+                                        onChange={(e) =>
+                                          updateChannelConstraint(row.channel, 'channelMroi', e.target.value)
+                                        }
+                                        placeholder="-"
+                                      />
+                                    )}
                                   </td>
                                 </>
                               )}
@@ -2252,52 +2710,52 @@ const MarketEdge = () => {
                               <td
                                 className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}
                               >
-                                {row.testRangeMin ?? '-'}
+                                {formatCurrency(testRanges[row.channel]?.min ?? row.testRangeMin)}
                               </td>
                               <td
                                 className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}
                               >
-                                {row.testRangeMax ?? '-'}
+                                {formatCurrency(testRanges[row.channel]?.max ?? row.testRangeMax)}
                               </td>
                               <td
                                 className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}
                               >
-                                {row.testSpend ?? '-'}
+                                {formatCurrency(row.testSpend)}
                               </td>
                               <td
                                 className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}
                               >
-                                {row.gmv ?? '-'}
+                                {formatCurrency(row.gmv)}
                               </td>
                               <td
                                 className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}
                               >
-                                {row.roas ?? '-'}
+                                {formatNumber(row.roas)}
                               </td>
                               <td
                                 className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}
                               >
-                                {row.mroas ?? '-'}
+                                {formatNumber(row.mroas)}
                               </td>
                               <td
                                 className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}
                               >
-                                {row.outChannelRoi ?? '-'}
+                                {formatNumber(row.outChannelRoi)}
                               </td>
                               <td
                                 className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}
                               >
-                                {row.outChannelMroi ?? '-'}
+                                {formatNumber(row.outChannelMroi)}
                               </td>
                               <td
                                 className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}
                               >
-                                {row.spendRank ?? '-'}
+                                {formatNumber(row.spendRank, 0)}
                               </td>
                               <td
                                 className={`py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700 whitespace-nowrap ${rowBg}`}
                               >
-                                {row.spendScale ?? '-'}
+                                {formatNumber(row.spendScale)}
                               </td>
                             </tr>
                           );

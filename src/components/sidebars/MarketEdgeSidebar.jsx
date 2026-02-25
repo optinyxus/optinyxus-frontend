@@ -10,7 +10,8 @@ import {
   CheckCircle2,
   Home,
   TrendingUp,
-  RotateCcw
+  RotateCcw,
+  Loader2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -26,7 +27,15 @@ const MarketEdgeSidebar = ({
   constraints,
   onConstraintsChange,
   onRunOptimization,
-  onReset
+  onReset,
+  isOptimizing = false,
+
+  // Test spread props
+  testSpreadMin,
+  testSpreadMax,
+  onTestSpreadMinChange,
+  onTestSpreadMaxChange,
+  onSetTestSpread
 }) => {
   const navigate = useNavigate();
   const [isDragging, setIsDragging] = useState(false);
@@ -38,10 +47,10 @@ const MarketEdgeSidebar = ({
   // c) ROAS Maximisation
   // d) ROI Maximisation
   const optimizationOptions = [
-    { id: 'sales', label: 'Sales Maximisation', icon: TrendingUp },
-    { id: 'spend', label: 'Spend Minimisation', icon: TrendingUp },
-    { id: 'roas', label: 'ROAS Maximisation', icon: TrendingUp },
-    { id: 'roi', label: 'ROI Maximisation', icon: TrendingUp }
+    { id: 'sales', label: 'Sales Maximisation', icon: TrendingUp, disabled: false },
+    { id: 'spend', label: 'Spend Minimisation', icon: TrendingUp, disabled: false },
+    { id: 'roas', label: 'ROAS Maximisation', icon: TrendingUp, disabled: false },
+    { id: 'roi', label: 'ROI Maximisation (Coming Soon)', icon: TrendingUp, disabled: true }
   ];
 
   // ✅ Global constraints order updated as requested:
@@ -49,15 +58,15 @@ const MarketEdgeSidebar = ({
   // b) Spend
   // c) ROAS
   // d) mROAS
-  // e) ROI
-  // f) mROI
+  // e) ROI (disabled - not in backend)
+  // f) mROI (disabled - not in backend)
   const constraintTypes = [
-    { value: 'Sales', unit: '₹' },
-    { value: 'Spend', unit: '₹' },
-    { value: 'ROAS', unit: '' },
-    { value: 'mROAS', unit: '' },
-    { value: 'ROI', unit: '' },
-    { value: 'mROI', unit: '' }
+    { value: 'Sales', unit: '₹', disabled: false },
+    { value: 'Spend', unit: '₹', disabled: false },
+    { value: 'ROAS', unit: '', disabled: false },
+    { value: 'mROAS', unit: '', disabled: false },
+    { value: 'ROI', unit: '', disabled: true },
+    { value: 'mROI', unit: '', disabled: true }
   ];
 
   const handleFileChange = (e) => {
@@ -126,9 +135,8 @@ const MarketEdgeSidebar = ({
 
       {/* Sidebar */}
       <div
-        className={`fixed left-0 top-0 h-screen w-[320px] bg-card-bg border-r border-border-gray z-50 transition-transform duration-300 flex flex-col ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0`}
+        className={`fixed left-0 top-0 h-screen w-[320px] bg-card-bg border-r border-border-gray z-50 transition-transform duration-300 flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full'
+          } lg:translate-x-0`}
       >
         {/* Close Button (Mobile) */}
         <button
@@ -177,13 +185,12 @@ const MarketEdgeSidebar = ({
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className={`relative border-2 border-dashed rounded-lg p-2 text-center transition-all duration-300 mb-3 ${
-                isDragging
-                  ? 'border-primary-text bg-gradient-card'
-                  : uploadedFile
+              className={`relative border-2 border-dashed rounded-lg p-2 text-center transition-all duration-300 mb-3 ${isDragging
+                ? 'border-primary-text bg-gradient-card'
+                : uploadedFile
                   ? 'border-green-300 bg-green-50/30'
                   : 'border-border-gray hover:border-secondary-text hover:bg-gradient-card'
-              } cursor-pointer`}
+                } cursor-pointer`}
             >
               <input
                 ref={inputRef}
@@ -228,11 +235,24 @@ const MarketEdgeSidebar = ({
 
             <button
               onClick={onRunOptimization}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-success text-white rounded-xl font-bold text-base shadow-premium-lg transition-all duration-200 hover:brightness-110 active:scale-100"
+              disabled={isOptimizing || !uploadedFile}
+              className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-base shadow-premium-lg transition-all duration-200 ${isOptimizing || !uploadedFile
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-gradient-success text-white hover:brightness-110 active:scale-100'
+                }`}
               type="button"
             >
-              <Play className="w-4 h-4 fill-white flex-shrink-0" strokeWidth={0} />
-              <span className="leading-none">Run Engine</span>
+              {isOptimizing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" strokeWidth={2} />
+                  <span className="leading-none">Optimizing...</span>
+                </>
+              ) : (
+                <>
+                  <Play className="w-4 h-4 fill-white flex-shrink-0" strokeWidth={0} />
+                  <span className="leading-none">Run Engine</span>
+                </>
+              )}
             </button>
           </div>
 
@@ -247,27 +267,93 @@ const MarketEdgeSidebar = ({
               {optimizationOptions.map((option) => {
                 const Icon = option.icon;
                 const active = selectedOptimization === option.id;
+                const isDisabled = option.disabled;
                 return (
                   <button
                     key={option.id}
                     type="button"
-                    onClick={() => onOptimizationChange(option.id)}
-                    className={`w-full flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 border-2 ${
-                      active
-                        ? 'border-primary-text bg-primary-text text-white shadow-premium-lg'
-                        : 'border-border-gray bg-white text-secondary-text hover:border-secondary-text hover:shadow-premium'
-                    }`}
+                    onClick={() => !isDisabled && onOptimizationChange(option.id)}
+                    disabled={isDisabled}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 border-2 ${isDisabled
+                      ? 'border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60'
+                      : active
+                        ? 'border-primary-text bg-primary-text text-white shadow-premium-lg cursor-pointer'
+                        : 'border-border-gray bg-white text-secondary-text hover:border-secondary-text hover:shadow-premium cursor-pointer'
+                      }`}
                   >
                     <Icon
-                      className={`w-5 h-5 flex-shrink-0 ${
-                        active ? 'text-white' : 'text-secondary-text'
-                      }`}
+                      className={`w-5 h-5 flex-shrink-0 ${active ? 'text-white' : 'text-secondary-text'
+                        }`}
                       strokeWidth={2}
                     />
                     <span className="text-sm font-semibold text-left flex-1">{option.label}</span>
                   </button>
                 );
               })}
+            </div>
+          </div>
+
+          {/* Test Spread */}
+          <div className="p-4 border-b border-border-gray">
+            <div className="flex items-center gap-2 mb-3">
+              <Sliders className="w-4 h-4 text-secondary-text" strokeWidth={2} />
+              <h3 className="text-lg font-bold text-primary-text">Test Spread</h3>
+            </div>
+
+            <div className="space-y-3">
+              {/* Min Input */}
+              <div>
+                <label className="block text-xs font-semibold text-secondary-text mb-1">
+                  Min (0-25)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={25}
+                  value={testSpreadMin}
+                  onChange={(e) => onTestSpreadMinChange(e.target.value)}
+                  placeholder="0"
+                  className="w-full px-3 py-2 text-sm border-2 border-border-gray rounded-lg focus:outline-none focus:border-primary-text transition-colors"
+                  disabled={!uploadedFile}
+                />
+              </div>
+
+              {/* Max Input */}
+              <div>
+                <label className="block text-xs font-semibold text-secondary-text mb-1">
+                  Max (0-25)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={25}
+                  value={testSpreadMax}
+                  onChange={(e) => onTestSpreadMaxChange(e.target.value)}
+                  placeholder="25"
+                  className="w-full px-3 py-2 text-sm border-2 border-border-gray rounded-lg focus:outline-none focus:border-primary-text transition-colors"
+                  disabled={!uploadedFile}
+                />
+              </div>
+
+              {/* Set Button */}
+              <button
+                onClick={onSetTestSpread}
+                disabled={isOptimizing || !uploadedFile || !testSpreadMin || !testSpreadMax}
+                className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm shadow-premium transition-all duration-200 ${isOptimizing || !uploadedFile || !testSpreadMin || !testSpreadMax
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:brightness-110'
+                  }`}
+                type="button"
+              >
+                {isOptimizing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} />
+                    <span>Setting...</span>
+                  </>
+                ) : (
+                  <span>Set Test Ranges</span>
+                )}
+              </button>
             </div>
           </div>
 
@@ -322,15 +408,18 @@ const MarketEdgeSidebar = ({
                         </label>
                         <select
                           value={constraint.type}
-                          onChange={(e) => handleConstraintChange(index, 'type', e.target.value)}
-                          className="w-full px-2 py-1.5 border border-border-gray rounded-lg text-xs font-medium focus:outline-none focus:border-secondary-text focus:shadow-premium bg-white"
+                          onChange={(e) => {
+                            const updated = [...constraints];
+                            updated[index].type = e.target.value;
+                            onConstraintsChange(updated);
+                          }}
+                          className="w-full text-sm px-3 py-2 border-2 border-border-gray rounded-lg focus:outline-none focus:border-primary-text transition-colors"
                         >
                           <option value="">Select</option>
-                          {constraintTypes.map((ct) => (
+                          {constraintTypes.filter(ct => !ct.disabled).map((ct) => (
                             <option
                               key={ct.value}
                               value={ct.value}
-                              disabled={constraints.some((c, i) => i !== index && c.type === ct.value)}
                             >
                               {ct.value}
                             </option>

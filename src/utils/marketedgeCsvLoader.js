@@ -99,9 +99,13 @@ const parseMarketEdgeCsvText = (text) => {
 
     if (isEmptyRow) continue;
 
+    // Parse funds available as number for backend
+    const fundsAvailableNum = cleanMoneyString(getRaw(row, 'fundsavailable'));
+    const fundsAvailableParsed = fundsAvailableNum ? parseFloat(fundsAvailableNum.replace(/,/g, '')) : null;
+
     out.push({
       channel,
-      fundsAvailable,
+      fundsAvailable: fundsAvailableParsed, // Store as number
       channelRoas: toMaybeNumericString(getRaw(row, 'channelroas')),
       channelMroas: toMaybeNumericString(getRaw(row, 'channelmroas')),
       channelRoi: toMaybeNumericString(getRaw(row, 'channelroi')),
