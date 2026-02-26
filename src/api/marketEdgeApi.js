@@ -3,9 +3,7 @@
  * Centralized API handling for MarketEdge module.
  */
 
-import { API_ROUTES } from './apiConfig';
-
-const API_BASE_URL = API_ROUTES.marketEdge;
+const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/v1/market-edge`;
 
 /**
  * Helper: Parse constraint range string (e.g., "8-10")

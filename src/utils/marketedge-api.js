@@ -3,9 +3,7 @@
  * Handles communication with FastAPI backend for optimization
  */
 
-import { API_ROUTES } from '../api/apiConfig';
-
-const API_BASE_URL = API_ROUTES.marketEdge;
+const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/v1/market-edge`;
 
 /**
  * Parse constraint range string (e.g., "8-10" or "8.5-9.2")
