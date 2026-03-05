@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../../components/common/Navbar';
 import PriceGenixSidebar from '../../components/sidebars/PriceGenixSidebar';
 import { loadPriceGenixCsv } from '../../utils/pricegenixCsvLoader';
-import { TrendingUp, DollarSign, Percent, Package, Award, Target, BarChart3, Download, X, TrendingDown, Maximize2, ChevronRight, ArrowUpRight, Clock, ChevronLeft, Eye, AlertCircle, Zap, TrendingDown as TrendingDownIcon, ArrowDown, History, Play, Sliders } from 'lucide-react';
+import { runPriceGenixOptimization, transformPriceGenixResponse } from '../../api/pricegenixApi';
+import { TrendingUp, DollarSign, Percent, Package, Award, Target, BarChart3, Download, X, TrendingDown, Maximize2, ChevronRight, ArrowUpRight, Clock, ChevronLeft, Eye, AlertCircle, CheckCircle2, Zap, TrendingDown as TrendingDownIcon, ArrowDown, History, Play, Sliders } from 'lucide-react';
 
 // Mock Data
 const mockOptimizationResults = [
@@ -168,6 +169,14 @@ const mockPastIterations = [
   },
 ];
 
+const REQUIRED_PORTFOLIO_FIELD_CONFIG = [
+  { key: 'total_gmv', label: 'Total GMV', type: 'currency' },
+  { key: 'total_profit', label: 'Total Profit', type: 'currency' },
+  { key: 'portfolio_margin_percent', label: 'Portfolio Margin %', type: 'percent' },
+  { key: 'total_units', label: 'Total Units', type: 'integer' },
+  { key: 'portfolio_discount_percent', label: 'Portfolio Discount %', type: 'percent' }
+];
+
 const PriceGenix = () => {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -186,6 +195,11 @@ const PriceGenix = () => {
   const [viewMode, setViewMode] = useState('current');
   const [selectedHistoryItem, setSelectedHistoryItem] = useState(null);
   const [isHistoryDropdownOpen, setIsHistoryDropdownOpen] = useState(false);
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const [optimizationError, setOptimizationError] = useState(null);
+  const [optimizationValidationMessage, setOptimizationValidationMessage] = useState('');
+  const [optimizationSummary, setOptimizationSummary] = useState(null);
+  const [portfolioTotals, setPortfolioTotals] = useState([]);
 
   const [currentPerformanceData, setCurrentPerformanceData] = useState(mockPerformanceData);
   const [currentPromotionData, setCurrentPromotionData] = useState(mockPromotionData);
@@ -197,9 +211,48 @@ const PriceGenix = () => {
   const [articleLevelConstraints, setArticleLevelConstraints] = useState({});
 
   const scoringOptions = ['Article', 'Brand', 'Category', 'Store', 'Geography', 'Channel'];
+  const STORAGE_KEY = 'pricegenix_dashboard_state';
+
+  const buildDefaultArticleConstraintsFromRows = (rows = []) => {
+    const defaults = {};
+    (rows || []).forEach((r) => {
+      const article = r?.article ?? r?.articleNo ?? r?.Article ?? r?.ARTICLE;
+      if (!article) return;
+
+      const stockMin = r?.stockMinPercent ?? r?.StockMinPercent ?? r?.stockMin ?? r?.StockMin;
+      const stockMax = r?.stockMaxPercent ?? r?.StockMaxPercent ?? r?.stockMax ?? r?.StockMax;
+      const discountMin = r?.discountMinPercent ?? r?.DiscountMinPercent ?? r?.discountMin ?? r?.DiscountMin;
+      const discountMax = r?.discountMaxPercent ?? r?.DiscountMaxPercent ?? r?.discountMax ?? r?.DiscountMax;
+
+      defaults[article] = {
+        stockMin: stockMin !== null && stockMin !== undefined && stockMin !== '' ? String(stockMin) : '',
+        stockMax: stockMax !== null && stockMax !== undefined && stockMax !== '' ? String(stockMax) : '',
+        discountMin: discountMin !== null && discountMin !== undefined && discountMin !== '' ? String(discountMin) : '',
+        discountMax: discountMax !== null && discountMax !== undefined && discountMax !== '' ? String(discountMax) : ''
+      };
+    });
+    return defaults;
+  };
 
   useEffect(() => {
     try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        const savedObjective = ['sales', 'profit', 'profitability'].includes(saved?.selectedOptimization)
+          ? saved.selectedOptimization
+          : 'sales';
+        if (saved?.uploadedFileName) setUploadedFile({ name: saved.uploadedFileName });
+        setUploadedPreviewRows(saved?.uploadedPreviewRows || []);
+        setArticleLevelConstraints(saved?.articleLevelConstraints || {});
+        setConstraints(saved?.constraints || []);
+        setSelectedOptimization(savedObjective);
+        setResultsData(saved?.resultsData || []);
+        setHasResults(Boolean(saved?.hasResults && saved?.uploadedFileName));
+        return;
+      }
+
+      // Backward compatibility with previous localStorage schema.
       const savedFileName = localStorage.getItem('pricegenix_uploadedFileName');
       const savedPreviewRows = localStorage.getItem('pricegenix_uploadedPreviewRows');
       const savedArticleConstraints = localStorage.getItem('pricegenix_articleLevelConstraints');
@@ -214,6 +267,35 @@ const PriceGenix = () => {
     }
   }, []);
 
+  useEffect(() => {
+    try {
+      const uploadedFileName = uploadedFile?.name || '';
+      if (!uploadedFileName) return;
+
+      const stateToSave = {
+        uploadedFileName,
+        uploadedPreviewRows: uploadedPreviewRows || [],
+        articleLevelConstraints: articleLevelConstraints || {},
+        constraints: constraints || [],
+        selectedOptimization,
+        hasResults,
+        resultsData: resultsData || []
+      };
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+    } catch (e) {
+      // ignore
+    }
+  }, [
+    uploadedFile,
+    uploadedPreviewRows,
+    articleLevelConstraints,
+    constraints,
+    selectedOptimization,
+    hasResults,
+    resultsData
+  ]);
+
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   const handleFileUpload = async (file) => {
@@ -227,6 +309,12 @@ const PriceGenix = () => {
       setResultsData([]);
       setViewMode('current');
       setSelectedHistoryItem(null);
+      setOptimizationError(null);
+      setOptimizationValidationMessage('');
+      setOptimizationSummary(null);
+      setPortfolioTotals([]);
+      setIsOptimizing(false);
+      localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem('pricegenix_uploadedFileName');
       localStorage.removeItem('pricegenix_uploadedPreviewRows');
       localStorage.removeItem('pricegenix_articleLevelConstraints');
@@ -237,59 +325,63 @@ const PriceGenix = () => {
 
     try {
       const { previewRows, articleLevelConstraintsMap } = await loadPriceGenixCsv(file);
-      setUploadedPreviewRows(previewRows);
+      setUploadedPreviewRows(previewRows || []);
 
-      // Prefill editable constraints from CSV (if present) so the table + colors reflect uploaded data.
-      const fallbackFromRows = {};
-      (previewRows || []).forEach((r) => {
-        const article = r?.article ?? r?.Article ?? r?.ARTICLE;
-        if (!article) return;
-
-        const stockMin = r?.stockMinPercent ?? r?.StockMinPercent ?? r?.stockMin ?? r?.StockMin;
-        const stockMax = r?.stockMaxPercent ?? r?.StockMaxPercent ?? r?.stockMax ?? r?.StockMax;
-        const discountMin = r?.discountMinPercent ?? r?.DiscountMinPercent ?? r?.discountMin ?? r?.DiscountMin;
-        const discountMax = r?.discountMaxPercent ?? r?.DiscountMaxPercent ?? r?.discountMax ?? r?.DiscountMax;
-
-        fallbackFromRows[article] = {
-          stockMin: stockMin !== null && stockMin !== undefined && stockMin !== '' ? String(stockMin) : '',
-          stockMax: stockMax !== null && stockMax !== undefined && stockMax !== '' ? String(stockMax) : '',
-          discountMin: discountMin !== null && discountMin !== undefined && discountMin !== '' ? String(discountMin) : '',
-          discountMax: discountMax !== null && discountMax !== undefined && discountMax !== '' ? String(discountMax) : ''
-        };
-      });
+      const fallbackFromRows = buildDefaultArticleConstraintsFromRows(previewRows || []);
 
       const nextArticleLevelConstraints = {
         ...(fallbackFromRows || {}),
         ...(articleLevelConstraintsMap || {})
       };
       setArticleLevelConstraints(nextArticleLevelConstraints);
-
-      localStorage.setItem('pricegenix_uploadedFileName', file.name);
-      localStorage.setItem('pricegenix_uploadedPreviewRows', JSON.stringify(previewRows || []));
-      localStorage.setItem('pricegenix_articleLevelConstraints', JSON.stringify(nextArticleLevelConstraints));
+      setHasResults(false);
+      setResultsData([]);
+      setViewMode('current');
+      setSelectedHistoryItem(null);
+      setOptimizationError(null);
+      setPortfolioTotals([]);
     } catch (err) {
       setUploadedPreviewRows([]);
       setArticleLevelConstraints({});
+      setHasResults(false);
+      setResultsData([]);
+      setOptimizationError('Failed to parse uploaded file.');
+      setOptimizationValidationMessage('');
+      setOptimizationSummary(null);
+      setPortfolioTotals([]);
 
+      localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem('pricegenix_uploadedFileName');
       localStorage.removeItem('pricegenix_uploadedPreviewRows');
       localStorage.removeItem('pricegenix_articleLevelConstraints');
     }
   };
 
-  const handleRunOptimization = () => {
-    // If a file is uploaded, show the same rows in the Optimized Results table.
-    if (uploadedPreviewRows && uploadedPreviewRows.length > 0) {
-      const mapped = uploadedPreviewRows.map((r) => ({
-        article: r.article,
+  const handleRunOptimization = async () => {
+    if (!uploadedFile || !uploadedPreviewRows || uploadedPreviewRows.length === 0) return;
+    if (isOptimizing) return;
+
+    setOptimizationError(null);
+    setOptimizationValidationMessage('');
+    setOptimizationSummary(null);
+    setPortfolioTotals([]);
+    setIsOptimizing(true);
+
+    try {
+      const initialRows = uploadedPreviewRows.map((r) => ({
+        article: r.article ?? r.articleNo ?? '',
+        articleNo: r.articleNo ?? r.article ?? '',
+        brand: r.brand ?? '',
+        category: r.category ?? '',
+        channel: r.channel ?? '',
+        storeNo: r.storeNo ?? '',
+        zone: r.zone ?? '',
         status: r.status,
         stock: r.stock ?? 0,
         mop: r.mop ?? 0,
         nlc: r.nlc ?? 0,
         maxPrice: r.maxPrice ?? 0,
         minPrice: r.minPrice ?? 0,
-
-        // Keep the existing table shape (other metrics stay empty/0 unless your engine fills them).
         testPrice: r.mop ?? 0,
         units: 0,
         sales: 0,
@@ -301,18 +393,54 @@ const PriceGenix = () => {
         discountUnit: 0
       }));
 
-      setResultsData(mapped);
+      const result = await runPriceGenixOptimization(selectedOptimization, {
+        globalConstraints: constraints,
+        articleConstraints: articleLevelConstraints,
+        tableRows: uploadedPreviewRows
+      });
+
+      if (!result.success || !result.data) {
+        const apiError = new Error(result.error || 'Optimization failed. Please try again.');
+        apiError.statusCode = result?.status;
+        apiError.validationMessage = result?.validationMessage || '';
+        apiError.backendMessage = result?.backendMessage || '';
+        throw apiError;
+      }
+
+      if (String(result.data?.status || '').toLowerCase() !== 'success') {
+        const responseError = new Error(result.data?.message || 'No solution found. Constraints are too strict.');
+        responseError.statusCode = 400;
+        responseError.validationMessage = result.data?.details || '';
+        responseError.backendMessage = result.data?.message || '';
+        throw responseError;
+      }
+
+      const updatedRows = transformPriceGenixResponse(result.data, initialRows);
+      setResultsData(updatedRows);
       setHasResults(true);
       setViewMode('current');
       setSelectedHistoryItem(null);
-      return;
-    }
+      setOptimizationSummary({
+        status: result.data.status || 'success',
+        optimization_time: result.data.optimization_time ?? null,
+        total_iterations: result.data.total_iterations ?? null,
+        valid_solutions: result.data.valid_solutions ?? null,
+        pass_rate: result.data.pass_rate ?? null
+      });
+      setPortfolioTotals(extractPortfolioTotalsFromResponse(result.data));
+    } catch (err) {
+      const strictErrorMessage = 'No solution found. Constraints are too strict.';
+      const backendValidation = err?.validationMessage || err?.backendMessage || err?.message || '';
 
-    // Fallback: demo data
-    setResultsData(mockOptimizationResults);
-    setHasResults(true);
-    setViewMode('current');
-    setSelectedHistoryItem(null);
+      setOptimizationError(strictErrorMessage);
+      setOptimizationValidationMessage(
+        backendValidation && backendValidation !== strictErrorMessage ? backendValidation : ''
+      );
+      setOptimizationSummary(null);
+      setPortfolioTotals([]);
+    } finally {
+      setIsOptimizing(false);
+    }
   };
 
   const handleReset = () => {
@@ -323,21 +451,30 @@ const PriceGenix = () => {
     setResultsData([]);
     setViewMode('current');
     setSelectedHistoryItem(null);
+    setIsHistoryDropdownOpen(false);
+    setOptimizationError(null);
+    setOptimizationValidationMessage('');
+    setOptimizationSummary(null);
+    setPortfolioTotals([]);
+    setIsOptimizing(false);
+    setArticleLevelConstraints(buildDefaultArticleConstraintsFromRows(uploadedPreviewRows));
+    setHideArticleLevelConstraints(false);
+    setStockConstraintsEnabled(true);
+    setDiscountConstraintsEnabled(true);
   };
 
   const handleViewHistory = (iteration) => {
     setSidebarOpen(false);
     setIsHistoryDropdownOpen(false);
     setSelectedHistoryItem(iteration);
-    setResultsData(mockOptimizationResults);
-    setHasResults(true);
     setViewMode('history');
+    setResultsData((prev) => (prev && prev.length > 0 ? prev : mockOptimizationResults));
+    setHasResults(true);
   };
 
   const handleBackToCurrent = () => {
     setViewMode('current');
     setSelectedHistoryItem(null);
-    setResultsData(mockOptimizationResults);
   };
 
   const handleDownload = () => {
@@ -472,6 +609,129 @@ const PriceGenix = () => {
     if (stockFilled) return 'bg-blue-50';
     if (discountFilled) return 'bg-rose-50';
     return '';
+  };
+
+  const inferPortfolioMetricType = (key) => {
+    const normalizedKey = String(key || '').toLowerCase();
+    if (normalizedKey.includes('percent') || normalizedKey.endsWith('_pct') || normalizedKey.endsWith('_percentage')) {
+      return 'percent';
+    }
+    if (normalizedKey.includes('units') || normalizedKey.includes('count')) {
+      return 'integer';
+    }
+    if (
+      normalizedKey.includes('gmv') ||
+      normalizedKey.includes('profit') ||
+      normalizedKey.includes('sales') ||
+      normalizedKey.includes('revenue') ||
+      normalizedKey.includes('spend') ||
+      normalizedKey.includes('discount') ||
+      normalizedKey.includes('price') ||
+      normalizedKey.includes('value')
+    ) {
+      return 'currency';
+    }
+    return 'number';
+  };
+
+  const toPortfolioLabel = (key) => String(key || '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+    .replace(/\bPct\b/i, '%')
+    .replace(/\bPercent\b/i, '%');
+
+  const extractPortfolioTotalsFromResponse = (backendData) => {
+    if (!backendData || typeof backendData !== 'object') return [];
+
+    const allKeys = Object.keys(backendData).filter((key) => key.startsWith('total_') || key.startsWith('portfolio_'));
+    if (allKeys.length === 0) return [];
+
+    const requiredItems = REQUIRED_PORTFOLIO_FIELD_CONFIG
+      .filter(({ key }) => Object.prototype.hasOwnProperty.call(backendData, key))
+      .map(({ key, label, type }) => ({
+        key,
+        label,
+        type,
+        value: backendData[key]
+      }));
+
+    const requiredKeySet = new Set(REQUIRED_PORTFOLIO_FIELD_CONFIG.map(({ key }) => key));
+    const additionalItems = allKeys
+      .filter((key) => !requiredKeySet.has(key))
+      .map((key) => ({
+        key,
+        label: toPortfolioLabel(key),
+        type: inferPortfolioMetricType(key),
+        value: backendData[key]
+      }));
+
+    return [...requiredItems, ...additionalItems];
+  };
+
+  const formatPortfolioValue = (value, type) => {
+    if (value === null || value === undefined || value === '') return '-';
+    const parsed = Number(value);
+
+    if (!Number.isFinite(parsed)) {
+      return String(value);
+    }
+
+    if (type === 'currency') {
+      return `₹${parsed.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+    }
+    if (type === 'percent') {
+      return `${parsed.toLocaleString('en-IN', { maximumFractionDigits: 2 })}%`;
+    }
+    if (type === 'integer') {
+      return Math.round(parsed).toLocaleString('en-IN');
+    }
+    return parsed.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+  };
+
+  const getPortfolioValue = (key) => portfolioTotals.find((metric) => metric.key === key)?.value;
+
+  const toNumericValue = (value) => {
+    if (value === null || value === undefined || value === '') return 0;
+    if (typeof value === 'string') {
+      const cleaned = value.replace(/\uFEFF/g, '').replace(/₹/g, '').replace(/%/g, '').replace(/,/g, '').trim();
+      const parsed = Number(cleaned);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const resultsPortfolioSums = useMemo(() => {
+    const rows = Array.isArray(resultsData) ? resultsData : [];
+    return rows.reduce((acc, row) => ({
+      stock: acc.stock + toNumericValue(row?.stock),
+      units: acc.units + toNumericValue(row?.units),
+      sales: acc.sales + toNumericValue(row?.sales),
+      profit: acc.profit + toNumericValue(row?.profit),
+      profitUnit: acc.profitUnit + toNumericValue(row?.profitUnit),
+      discount: acc.discount + toNumericValue(row?.discount),
+      discountUnit: acc.discountUnit + toNumericValue(row?.discountUnit)
+    }), {
+      stock: 0,
+      units: 0,
+      sales: 0,
+      profit: 0,
+      profitUnit: 0,
+      discount: 0,
+      discountUnit: 0
+    });
+  }, [resultsData]);
+
+  const uploadedPortfolioSums = useMemo(() => {
+    const rows = Array.isArray(uploadedPreviewRows) ? uploadedPreviewRows : [];
+    return rows.reduce((acc, row) => ({
+      stock: acc.stock + toNumericValue(row?.stock ?? row?.Stock ?? row?.STOCK)
+    }), { stock: 0 });
+  }, [uploadedPreviewRows]);
+
+  const backendOrFallback = (key, fallbackValue) => {
+    const backendValue = getPortfolioValue(key);
+    return backendValue !== null && backendValue !== undefined && backendValue !== '' ? backendValue : fallbackValue;
   };
 
 
@@ -662,11 +922,10 @@ const PriceGenix = () => {
 
                 {/* 🔥 RADIO BUTTONS - GRAY COLOR SCHEME */}
                 <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 lg:flex-nowrap">
-                  <label className={`px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-full cursor-pointer transition-all text-[10px] sm:text-xs font-medium ${
-                    topArticlesMetric === 'sales'
-                      ? 'bg-gray-900 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}>
+                  <label className={`px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-full cursor-pointer transition-all text-[10px] sm:text-xs font-medium ${topArticlesMetric === 'sales'
+                    ? 'bg-gray-900 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}>
                     <input
                       type="radio"
                       name="topArticlesMetric"
@@ -678,11 +937,10 @@ const PriceGenix = () => {
                     Sales
                   </label>
 
-                  <label className={`px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-full cursor-pointer transition-all text-[10px] sm:text-xs font-medium ${
-                    topArticlesMetric === 'profit'
-                      ? 'bg-gray-900 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}>
+                  <label className={`px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-full cursor-pointer transition-all text-[10px] sm:text-xs font-medium ${topArticlesMetric === 'profit'
+                    ? 'bg-gray-900 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}>
                     <input
                       type="radio"
                       name="topArticlesMetric"
@@ -694,11 +952,10 @@ const PriceGenix = () => {
                     Profit
                   </label>
 
-                  <label className={`px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-full cursor-pointer transition-all text-[10px] sm:text-xs font-medium ${
-                    topArticlesMetric === 'units'
-                      ? 'bg-gray-900 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}>
+                  <label className={`px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-full cursor-pointer transition-all text-[10px] sm:text-xs font-medium ${topArticlesMetric === 'units'
+                    ? 'bg-gray-900 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}>
                     <input
                       type="radio"
                       name="topArticlesMetric"
@@ -710,11 +967,10 @@ const PriceGenix = () => {
                     Units
                   </label>
 
-                  <label className={`px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-full cursor-pointer transition-all text-[10px] sm:text-xs font-medium ${
-                    topArticlesMetric === 'discount'
-                      ? 'bg-gray-900 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}>
+                  <label className={`px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-full cursor-pointer transition-all text-[10px] sm:text-xs font-medium ${topArticlesMetric === 'discount'
+                    ? 'bg-gray-900 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}>
                     <input
                       type="radio"
                       name="topArticlesMetric"
@@ -738,31 +994,28 @@ const PriceGenix = () => {
               <div className="flex gap-1 sm:gap-2 overflow-x-auto">
                 <button
                   onClick={() => setTopArticlesTab('overview')}
-                  className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-t-lg transition-all border-b-2 whitespace-nowrap ${
-                    topArticlesTab === 'overview'
-                      ? 'border-gray-900 text-gray-900'
-                      : 'border-transparent text-gray-500 hover:text-gray-900'
-                  }`}
+                  className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-t-lg transition-all border-b-2 whitespace-nowrap ${topArticlesTab === 'overview'
+                    ? 'border-gray-900 text-gray-900'
+                    : 'border-transparent text-gray-500 hover:text-gray-900'
+                    }`}
                 >
                   Overview
                 </button>
                 <button
                   onClick={() => setTopArticlesTab('top50')}
-                  className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-t-lg transition-all border-b-2 whitespace-nowrap ${
-                    topArticlesTab === 'top50'
-                      ? 'border-gray-900 text-gray-900'
-                      : 'border-transparent text-gray-500 hover:text-gray-900'
-                  }`}
+                  className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-t-lg transition-all border-b-2 whitespace-nowrap ${topArticlesTab === 'top50'
+                    ? 'border-gray-900 text-gray-900'
+                    : 'border-transparent text-gray-500 hover:text-gray-900'
+                    }`}
                 >
                   Top 50%
                 </button>
                 <button
                   onClick={() => setTopArticlesTab('top80')}
-                  className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-t-lg transition-all border-b-2 whitespace-nowrap ${
-                    topArticlesTab === 'top80'
-                      ? 'border-gray-900 text-gray-900'
-                      : 'border-transparent text-gray-500 hover:text-gray-900'
-                  }`}
+                  className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-t-lg transition-all border-b-2 whitespace-nowrap ${topArticlesTab === 'top80'
+                    ? 'border-gray-900 text-gray-900'
+                    : 'border-transparent text-gray-500 hover:text-gray-900'
+                    }`}
                 >
                   Top 80%
                 </button>
@@ -1071,6 +1324,7 @@ const PriceGenix = () => {
           onConstraintsChange={setConstraints}
           onRunOptimization={handleRunOptimization}
           onReset={handleReset}
+          isOptimizing={isOptimizing}
         />
       )}
 
@@ -1082,6 +1336,60 @@ const PriceGenix = () => {
       />
 
       <div className={`pt-16 transition-all duration-300 ${viewMode === 'history' ? 'ml-0' : 'lg:ml-[320px]'}`}>
+        {optimizationSummary && hasResults && (
+          <div className="bg-green-50 border-l-4 border-green-500 p-4 mx-4 sm:mx-6 mt-4 rounded-lg shadow-sm">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <CheckCircle2 className="h-5 w-5 text-green-500" />
+              </div>
+              <div className="ml-3 flex-1">
+                <h3 className="text-sm font-medium text-green-800">Optimization Summary</h3>
+                <div className="mt-2 text-sm text-green-700 overflow-x-auto">
+                  <p className="whitespace-nowrap">
+                    <span className="font-semibold">status:</span> {optimizationSummary.status || '-'}
+                    <span className="mx-2">|</span>
+                    <span className="font-semibold">optimization_time:</span> {optimizationSummary.optimization_time ?? '-'}{optimizationSummary.optimization_time !== null && optimizationSummary.optimization_time !== undefined ? 's' : ''}
+                    <span className="mx-2">|</span>
+                    <span className="font-semibold">total_iterations:</span> {optimizationSummary.total_iterations !== null && optimizationSummary.total_iterations !== undefined ? new Intl.NumberFormat('en-IN').format(optimizationSummary.total_iterations) : '-'}
+                    <span className="mx-2">|</span>
+                    <span className="font-semibold">valid_solutions:</span> {optimizationSummary.valid_solutions !== null && optimizationSummary.valid_solutions !== undefined ? new Intl.NumberFormat('en-IN').format(optimizationSummary.valid_solutions) : '-'}
+                    <span className="mx-2">|</span>
+                    <span className="font-semibold">pass_rate:</span> {optimizationSummary.pass_rate ?? '-'}{optimizationSummary.pass_rate !== null && optimizationSummary.pass_rate !== undefined ? '%' : ''}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {optimizationError && (
+          <div className="bg-red-50 border-l-4 border-red-500 p-4 mx-4 sm:mx-6 mt-4 rounded-lg shadow-sm">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <AlertCircle className="h-5 w-5 text-red-400" />
+              </div>
+              <div className="ml-3 flex-1">
+                <h3 className="text-sm font-medium text-red-800">Optimization Error</h3>
+                <div className="mt-2 text-sm text-red-700">
+                  <p>{optimizationError}</p>
+                  {optimizationValidationMessage && (
+                    <p className="mt-1">{optimizationValidationMessage}</p>
+                  )}
+                </div>
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={() => setOptimizationError(null)}
+                    className="text-sm font-medium text-red-800 hover:text-red-600 underline"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="p-4 sm:p-6 space-y-4">
           {viewMode === 'history' && selectedHistoryItem && (
             <div className="relative bg-white rounded-lg p-3 sm:p-4 shadow-sm border-2 border-gray-300">
@@ -1191,24 +1499,24 @@ const PriceGenix = () => {
                                   <tr>
                                     <th className="w-[120px] text-left py-1 px-2 font-semibold text-gray-900 border-b border-gray-200">Metric</th>
                                     <th className="text-right py-1 px-2 font-semibold text-gray-900 border-b border-gray-200">Min</th>
-                                  <th className="text-right py-1 px-2 font-semibold text-gray-900 border-b border-gray-200">Max</th>
+                                    <th className="text-right py-1 px-2 font-semibold text-gray-900 border-b border-gray-200">Max</th>
                                   </tr>
                                 </thead>
                                 <tbody className="bg-white">
                                   <tr className="border-b border-gray-100">
                                     <td className="py-1 px-2 font-medium text-gray-700">Sales</td>
                                     <td className="py-1 px-2 text-right text-gray-900">{splitMinMax(constraintMap.sales).min}</td>
-                                  <td className="py-1 px-2 text-right text-gray-900">{splitMinMax(constraintMap.sales).max}</td>
+                                    <td className="py-1 px-2 text-right text-gray-900">{splitMinMax(constraintMap.sales).max}</td>
                                   </tr>
                                   <tr className="border-b border-gray-100">
                                     <td className="py-1 px-2 font-medium text-gray-700">Profit</td>
                                     <td className="py-1 px-2 text-right font-semibold text-gray-900">{splitMinMax(constraintMap.profit).min}</td>
-                                  <td className="py-1 px-2 text-right font-semibold text-gray-900">{splitMinMax(constraintMap.profit).max}</td>
+                                    <td className="py-1 px-2 text-right font-semibold text-gray-900">{splitMinMax(constraintMap.profit).max}</td>
                                   </tr>
                                   <tr>
                                     <td className="py-1 px-2 font-medium text-gray-700">Profit %</td>
                                     <td className="py-1 px-2 text-right text-gray-900">{splitMinMax(constraintMap.profitPercentage).min}</td>
-                                  <td className="py-1 px-2 text-right text-gray-900">{splitMinMax(constraintMap.profitPercentage).max}</td>
+                                    <td className="py-1 px-2 text-right text-gray-900">{splitMinMax(constraintMap.profitPercentage).max}</td>
                                   </tr>
                                 </tbody>
                               </table>
@@ -1220,19 +1528,19 @@ const PriceGenix = () => {
                                   <tr>
                                     <th className="w-[120px] text-left py-1 px-2 font-semibold text-gray-900 border-b border-gray-200">Metric</th>
                                     <th className="text-right py-1 px-2 font-semibold text-gray-900 border-b border-gray-200">Min</th>
-                                  <th className="text-right py-1 px-2 font-semibold text-gray-900 border-b border-gray-200">Max</th>
+                                    <th className="text-right py-1 px-2 font-semibold text-gray-900 border-b border-gray-200">Max</th>
                                   </tr>
                                 </thead>
                                 <tbody className="bg-white">
                                   <tr className="border-b border-gray-100">
                                     <td className="py-1 px-2 font-medium text-gray-700">Units</td>
                                     <td className="py-1 px-2 text-right text-gray-900">{splitMinMax(constraintMap.units).min}</td>
-                                  <td className="py-1 px-2 text-right text-gray-900">{splitMinMax(constraintMap.units).max}</td>
+                                    <td className="py-1 px-2 text-right text-gray-900">{splitMinMax(constraintMap.units).max}</td>
                                   </tr>
                                   <tr>
                                     <td className="py-1 px-2 font-medium text-gray-700">Discount</td>
                                     <td className="py-1 px-2 text-right font-semibold text-gray-900">{splitMinMax(constraintMap.discount).min}</td>
-                                  <td className="py-1 px-2 text-right font-semibold text-gray-900">{splitMinMax(constraintMap.discount).max}</td>
+                                    <td className="py-1 px-2 text-right font-semibold text-gray-900">{splitMinMax(constraintMap.discount).max}</td>
                                   </tr>
                                 </tbody>
                               </table>
@@ -1257,11 +1565,10 @@ const PriceGenix = () => {
                       <button
                         key={option}
                         onClick={() => toggleScoringLevel(option)}
-                        className={`px-2 sm:px-2.5 md:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-medium transition-all ${
-                          scoringLevels.includes(option)
-                            ? 'bg-gray-900 text-white'
-                            : 'bg-white border border-gray-300 text-gray-600 hover:border-gray-900'
-                        }`}
+                        className={`px-2 sm:px-2.5 md:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-medium transition-all ${scoringLevels.includes(option)
+                          ? 'bg-gray-900 text-white'
+                          : 'bg-white border border-gray-300 text-gray-600 hover:border-gray-900'
+                          }`}
                       >
                         {option}
                       </button>
@@ -1448,46 +1755,45 @@ const PriceGenix = () => {
                       </div>
 
                       {(() => {
-                          const canToggleHide = stockConstraintsEnabled || discountConstraintsEnabled;
-                          return (
-                            <div className="flex items-center gap-3">
-                              <label
-                                className={
-                                  `flex items-center gap-2 text-[10px] sm:text-xs font-semibold whitespace-nowrap ${
-                                    canToggleHide ? 'text-gray-900 cursor-pointer' : 'text-gray-400 cursor-not-allowed'
-                                  }`
-                                }
-                              >
-                                <input
-                                  type="checkbox"
-                                  disabled={!canToggleHide}
-                                  checked={hideArticleLevelConstraints}
-                                  onChange={(e) => setHideArticleLevelConstraints(e.target.checked)}
-                                  className="w-4 h-4"
-                                />
-                                Hide
-                              </label>
+                        const canToggleHide = stockConstraintsEnabled || discountConstraintsEnabled;
+                        return (
+                          <div className="flex items-center gap-3">
+                            <label
+                              className={
+                                `flex items-center gap-2 text-[10px] sm:text-xs font-semibold whitespace-nowrap ${canToggleHide ? 'text-gray-900 cursor-pointer' : 'text-gray-400 cursor-not-allowed'
+                                }`
+                              }
+                            >
+                              <input
+                                type="checkbox"
+                                disabled={!canToggleHide}
+                                checked={hideArticleLevelConstraints}
+                                onChange={(e) => setHideArticleLevelConstraints(e.target.checked)}
+                                className="w-4 h-4"
+                              />
+                              Hide
+                            </label>
 
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setArticleLevelConstraints((prev) => {
-                                    const next = {};
-                                    Object.keys(prev).forEach((k) => {
-                                      next[k] = { ...prev[k], stockMin: '', stockMax: '', discountMin: '', discountMax: '' };
-                                    });
-                                    return next;
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setArticleLevelConstraints((prev) => {
+                                  const next = {};
+                                  Object.keys(prev).forEach((k) => {
+                                    next[k] = { ...prev[k], stockMin: '', stockMax: '', discountMin: '', discountMax: '' };
                                   });
-                                }}
-                                className="px-2 py-2 border border-gray-200 rounded-lg text-[10px] sm:text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
-                                title="Reset article constraints"
-                              >
-                                Reset
-                              </button>
-                            </div>
-                          );
-                        })()}
-</div>
+                                  return next;
+                                });
+                              }}
+                              className="px-2 py-2 border border-gray-200 rounded-lg text-[10px] sm:text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+                              title="Reset article constraints"
+                            >
+                              Reset
+                            </button>
+                          </div>
+                        );
+                      })()}
+                    </div>
 
                     <button
                       onClick={handleDownload}
@@ -1500,28 +1806,33 @@ const PriceGenix = () => {
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full text-[10px] sm:text-xs min-w-[1700px]">
+                  <table className="w-full text-[10px] sm:text-xs min-w-[2300px]">
                     <thead className="bg-gray-50 border-b-2 border-gray-300">
                       <tr>
-                        <th className="sticky left-0 z-10 bg-gray-50 text-left py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 border-r-2 border-gray-300">Article</th>
+                        <th className="sticky left-0 z-10 bg-gray-50 text-left py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 border-r-2 border-gray-300 whitespace-nowrap">Brand</th>
+                        <th className="text-left py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Article No.</th>
+                        <th className="text-left py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Category</th>
+                        <th className="text-left py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Channel</th>
+                        <th className="text-left py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Store No.</th>
+                        <th className="text-left py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Zone</th>
                         <th className="text-center py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900">Status</th>
                         <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900">Stock</th>
                         {!hideArticleLevelConstraints && stockConstraintsEnabled && (
                           <>
-                            <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Stock Min%</th>
-                            <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Stock Max%</th>
+                            <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Stock Min. %</th>
+                            <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Stock Max. %</th>
                           </>
                         )}
                         {!hideArticleLevelConstraints && discountConstraintsEnabled && (
                           <>
-                            <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Discount Min%</th>
-                            <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Discount Max%</th>
+                            <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Discount Min. %</th>
+                            <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Discount Max. %</th>
                           </>
                         )}
                         <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900">MOP</th>
                         <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900">NLC</th>
-                        <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Max Price</th>
-                        <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Min Price</th>
+                        <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Max. Price</th>
+                        <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Min. Price</th>
                         <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 bg-emerald-50">Test Price</th>
                         <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900">Units</th>
                         <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900">Sales</th>
@@ -1540,7 +1851,12 @@ const PriceGenix = () => {
                           onClick={() => handleRowClick(row)}
                           className={`border-b border-gray-100 transition-colors cursor-pointer group ${getArticleLevelConstraintColor(row.article) || "hover:bg-gray-50"}`}
                         >
-                          <td className={`sticky left-0 z-10 py-2 sm:py-2.5 px-2 sm:px-3 font-medium text-gray-900 border-r-2 border-gray-200 ${getArticleLevelConstraintColor(row.article) || "bg-white group-hover:bg-gray-50"}`}>{row.article}</td>
+                          <td className={`sticky left-0 z-10 py-2 sm:py-2.5 px-2 sm:px-3 font-medium text-gray-900 border-r-2 border-gray-200 ${getArticleLevelConstraintColor(row.article) || "bg-white group-hover:bg-gray-50"}`}>{row.brand || '-'}</td>
+                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-gray-700">{row.article}</td>
+                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-gray-700">{row.category || '-'}</td>
+                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-gray-700">{row.channel || '-'}</td>
+                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-gray-700">{row.storeNo || '-'}</td>
+                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-gray-700">{row.zone || '-'}</td>
                           <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-center">
                             {row.status && <span className={`inline-flex px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-medium bg-green-100 text-green-700`}>
                               {row.status}
@@ -1626,6 +1942,73 @@ const PriceGenix = () => {
                           <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">₹{row.discountUnit.toLocaleString()}</td>
                         </tr>
                       ))}
+                      <tr className="border-b border-gray-100 bg-gray-100 font-bold">
+                        <td className="sticky left-0 z-10 py-2 sm:py-2.5 px-2 sm:px-3 font-medium text-gray-900 border-r-2 border-gray-200 bg-gray-100 whitespace-nowrap">
+                          Portfolio (Total)
+                        </td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-500">-</td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-500">-</td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-500">-</td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-500">-</td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-500">-</td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-500">-</td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700">
+                          {formatPortfolioValue(resultsPortfolioSums.stock, 'integer')}
+                        </td>
+                        {!hideArticleLevelConstraints && stockConstraintsEnabled && (
+                          <>
+                            <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-500">-</td>
+                            <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-500">-</td>
+                          </>
+                        )}
+                        {!hideArticleLevelConstraints && discountConstraintsEnabled && (
+                          <>
+                            <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-500">-</td>
+                            <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-500">-</td>
+                          </>
+                        )}
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-500">-</td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-500">-</td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-500">-</td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-500">-</td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-500">-</td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700">
+                          {formatPortfolioValue(backendOrFallback('total_units', resultsPortfolioSums.units), 'integer')}
+                        </td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700">
+                          {formatPortfolioValue(backendOrFallback('total_gmv', resultsPortfolioSums.sales), 'currency')}
+                        </td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700">
+                          {formatPortfolioValue(backendOrFallback('total_profit', resultsPortfolioSums.profit), 'currency')}
+                        </td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700">
+                          {formatPortfolioValue(
+                            backendOrFallback(
+                              'portfolio_margin_percent',
+                              resultsPortfolioSums.sales > 0 ? (resultsPortfolioSums.profit / resultsPortfolioSums.sales) * 100 : 0
+                            ),
+                            'percent'
+                          )}
+                        </td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700">
+                          {formatPortfolioValue(resultsPortfolioSums.profitUnit, 'currency')}
+                        </td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700">
+                          {formatPortfolioValue(resultsPortfolioSums.discount, 'currency')}
+                        </td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700">
+                          {formatPortfolioValue(
+                            backendOrFallback(
+                              'portfolio_discount_percent',
+                              resultsPortfolioSums.sales > 0 ? (resultsPortfolioSums.discount / resultsPortfolioSums.sales) * 100 : 0
+                            ),
+                            'percent'
+                          )}
+                        </td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700">
+                          {formatPortfolioValue(resultsPortfolioSums.discountUnit, 'currency')}
+                        </td>
+                      </tr>
                     </tbody>
                   </table>
                 </div>
@@ -1680,9 +2063,8 @@ const PriceGenix = () => {
                           return (
                             <div className="flex items-center gap-3">
                               <label
-                                className={`flex items-center gap-2 text-[10px] sm:text-xs font-semibold whitespace-nowrap ${
-                                  canToggleHide ? 'text-gray-900 cursor-pointer' : 'text-gray-400 cursor-not-allowed'
-                                }`}
+                                className={`flex items-center gap-2 text-[10px] sm:text-xs font-semibold whitespace-nowrap ${canToggleHide ? 'text-gray-900 cursor-pointer' : 'text-gray-400 cursor-not-allowed'
+                                  }`}
                               >
                                 <input
                                   type="checkbox"
@@ -1723,37 +2105,47 @@ const PriceGenix = () => {
                   </div>
 
                   <div className="border border-gray-200 rounded-lg overflow-x-auto bg-white">
-                    <table className="w-full text-[10px] sm:text-xs min-w-[900px] table-auto">
+                    <table className="w-full text-[10px] sm:text-xs min-w-[1600px] table-auto">
                       <thead className="bg-gray-50 border-b-2 border-gray-300">
                         <tr>
-                          <th className="sticky left-0 z-10 bg-gray-50 text-left py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900 border-r border-gray-300">Article</th>
+                          <th className="sticky left-0 z-10 bg-gray-50 text-left py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900 border-r border-gray-300 whitespace-nowrap">Brand</th>
+                          <th className="text-left py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900 whitespace-nowrap">Article No.</th>
+                          <th className="text-left py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900 whitespace-nowrap">Category</th>
+                          <th className="text-left py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900 whitespace-nowrap">Channel</th>
+                          <th className="text-left py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900 whitespace-nowrap">Store No.</th>
+                          <th className="text-left py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900 whitespace-nowrap">Zone</th>
                           <th className="text-center py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900">Status</th>
                           <th className="text-right py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900">Stock</th>
 
                           {!hideArticleLevelConstraints && stockConstraintsEnabled && (
                             <>
-                              <th className="text-right py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900 whitespace-nowrap">Stock Min%</th>
-                              <th className="text-right py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900 whitespace-nowrap">Stock Max%</th>
+                              <th className="text-right py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900 whitespace-nowrap">Stock Min. %</th>
+                              <th className="text-right py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900 whitespace-nowrap">Stock Max. %</th>
                             </>
                           )}
 
                           {!hideArticleLevelConstraints && discountConstraintsEnabled && (
                             <>
-                              <th className="text-right py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900 whitespace-nowrap">Discount Min%</th>
-                              <th className="text-right py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900 whitespace-nowrap">Discount Max%</th>
+                              <th className="text-right py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900 whitespace-nowrap">Discount Min. %</th>
+                              <th className="text-right py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900 whitespace-nowrap">Discount Max. %</th>
                             </>
                           )}
 
                           <th className="text-right py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900">MOP</th>
                           <th className="text-right py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900">NLC</th>
-                          <th className="text-right py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900 whitespace-nowrap">Max Price</th>
-                          <th className="text-right py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900 whitespace-nowrap">Min Price</th>
+                          <th className="text-right py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900 whitespace-nowrap">Max. Price</th>
+                          <th className="text-right py-1.5 sm:py-2 px-1 sm:px-1.5 font-semibold text-gray-900 whitespace-nowrap">Min. Price</th>
                         </tr>
                       </thead>
 
                       <tbody className="bg-white">
                         {uploadedPreviewRows.map((row, idx) => {
                           const article = row?.article ?? row?.Article ?? row?.ARTICLE;
+                          const brand = row?.brand ?? row?.Brand ?? row?.BRAND;
+                          const category = row?.category ?? row?.Category ?? row?.CATEGORY;
+                          const channel = row?.channel ?? row?.Channel ?? row?.CHANNEL;
+                          const storeNo = row?.storeNo ?? row?.StoreNo ?? row?.['Store No.'] ?? row?.['Store No'];
+                          const zone = row?.zone ?? row?.Zone ?? row?.ZONE;
                           const status = row?.status ?? row?.Status ?? row?.STATUS;
                           const stock = row?.stock ?? row?.Stock ?? row?.STOCK;
                           const mop = row?.mop ?? row?.MOP;
@@ -1766,9 +2158,12 @@ const PriceGenix = () => {
                               key={idx}
                               className={`border-b border-gray-100 transition-colors group ${getArticleLevelConstraintColor(article) || 'hover:bg-gray-50'}`}
                             >
-                              <td className={`sticky left-0 z-10 py-1.5 sm:py-2 px-1 sm:px-1.5 font-medium text-gray-900 border-r border-gray-200 ${getArticleLevelConstraintColor(article) || 'bg-white group-hover:bg-gray-50'}`}>
-                                {article}
-                              </td>
+                              <td className={`sticky left-0 z-10 py-1.5 sm:py-2 px-1 sm:px-1.5 font-medium text-gray-900 border-r border-gray-200 ${getArticleLevelConstraintColor(article) || 'bg-white group-hover:bg-gray-50'}`}>{brand || '-'}</td>
+                              <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-gray-700">{article}</td>
+                              <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-gray-700">{category || '-'}</td>
+                              <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-gray-700">{channel || '-'}</td>
+                              <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-gray-700">{storeNo || '-'}</td>
+                              <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-gray-700">{zone || '-'}</td>
 
                               <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-center">
                                 {status ? (
@@ -1863,6 +2258,36 @@ const PriceGenix = () => {
                             </tr>
                           );
                         })}
+                        <tr className="border-b border-gray-100 bg-gray-100 font-bold">
+                          <td className="sticky left-0 z-10 py-1.5 sm:py-2 px-1 sm:px-1.5 font-medium text-gray-900 border-r border-gray-200 bg-gray-100 whitespace-nowrap">
+                            Portfolio (Total)
+                          </td>
+                          <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-right text-gray-500">-</td>
+                          <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-right text-gray-500">-</td>
+                          <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-right text-gray-500">-</td>
+                          <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-right text-gray-500">-</td>
+                          <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-right text-gray-500">-</td>
+                          <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-right text-gray-500">-</td>
+                          <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-right text-gray-700">
+                            {formatPortfolioValue(uploadedPortfolioSums.stock, 'integer')}
+                          </td>
+                          {!hideArticleLevelConstraints && stockConstraintsEnabled && (
+                            <>
+                              <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-right text-gray-500">-</td>
+                              <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-right text-gray-500">-</td>
+                            </>
+                          )}
+                          {!hideArticleLevelConstraints && discountConstraintsEnabled && (
+                            <>
+                              <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-right text-gray-500">-</td>
+                              <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-right text-gray-500">-</td>
+                            </>
+                          )}
+                          <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-right text-gray-500">-</td>
+                          <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-right text-gray-500">-</td>
+                          <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-right text-gray-500">-</td>
+                          <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-right text-gray-500">-</td>
+                        </tr>
                       </tbody>
                     </table>
                   </div>

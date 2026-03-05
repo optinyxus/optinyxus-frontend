@@ -12,9 +12,9 @@ import {
   TrendingUp,
   DollarSign,
   Percent,
-  Package,
   RotateCcw,
-  Award
+  Award,
+  Loader2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -28,17 +28,18 @@ const PriceGenixSidebar = ({
   constraints,
   onConstraintsChange,
   onRunOptimization,
-  onReset
+  onReset,
+  isOptimizing = false
 }) => {
   const navigate = useNavigate();
   const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef(null);
 
   const optimizationOptions = [
-    { id: 'sales', label: 'Sales Maximization', icon: TrendingUp },
-    { id: 'profit', label: 'Profit Maximization', icon: DollarSign },
-    { id: 'profitability', label: 'Profitability Maximization', icon: Percent },
-    { id: 'competitive', label: 'Competitive Advantage', icon: Award }
+    { id: 'sales', label: 'Sales Maximization', icon: TrendingUp, disabled: false },
+    { id: 'profit', label: 'Profit Maximization', icon: DollarSign, disabled: false },
+    { id: 'profitability', label: 'Profitability Maximization', icon: Percent, disabled: false },
+    { id: 'competitive', label: 'Competitive Advantage (Coming Soon)', icon: Award, disabled: true }
   ];
 
   const constraintTypes = [
@@ -51,9 +52,7 @@ const PriceGenixSidebar = ({
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      onFileUpload(file);
-    }
+    if (file) onFileUpload(file);
     if (inputRef.current) inputRef.current.value = '';
   };
 
@@ -70,9 +69,7 @@ const PriceGenixSidebar = ({
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
-    if (file) {
-      onFileUpload(file);
-    }
+    if (file) onFileUpload(file);
     if (inputRef.current) inputRef.current.value = '';
   };
 
@@ -86,9 +83,9 @@ const PriceGenixSidebar = ({
     updated[index] = { ...updated[index], [field]: value };
 
     if (field === 'type') {
-      const constraintType = constraintTypes.find((ct) => ct.value === value);
-      if (constraintType?.hasFormat) {
-        updated[index].format = 'percentage';
+      const selectedType = constraintTypes.find((ct) => ct.value === value);
+      if (selectedType?.hasFormat) {
+        updated[index].format = 'percent';
       } else {
         delete updated[index].format;
       }
@@ -98,16 +95,13 @@ const PriceGenixSidebar = ({
   };
 
   const handleAddConstraint = () => {
-    const availableTypes = constraintTypes.filter(
-      (ct) => !constraints.some((c) => c.type === ct.value)
-    );
+    const availableTypes = constraintTypes.filter((ct) => !constraints.some((c) => c.type === ct.value));
+    if (availableTypes.length === 0) return;
 
-    if (availableTypes.length > 0) {
-      onConstraintsChange([
-        ...constraints,
-        { type: '', minimum: '', maximum: '', format: 'percentage' }
-      ]);
-    }
+    onConstraintsChange([
+      ...constraints,
+      { type: '', minimum: '', maximum: '', format: 'percent' }
+    ]);
   };
 
   const handleRemoveConstraint = (index) => {
@@ -115,19 +109,17 @@ const PriceGenixSidebar = ({
   };
 
   const getConstraintUnit = (constraint) => {
-    const type = constraintTypes.find((ct) => ct.value === constraint.type);
-    if (!type) return '';
+    const selectedType = constraintTypes.find((ct) => ct.value === constraint.type);
+    if (!selectedType) return '';
 
-    if (type.hasFormat && constraint.format) {
-      return constraint.format === 'percentage' ? '%' : 'Qty';
+    if (selectedType.hasFormat) {
+      return constraint.format === 'absolute' ? 'Qty' : '%';
     }
-
-    return type.unit;
+    return selectedType.unit;
   };
 
   return (
     <>
-      {/* Mobile Overlay */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
@@ -136,20 +128,18 @@ const PriceGenixSidebar = ({
       )}
 
       <div
-        className={`fixed left-0 top-0 h-screen w-[320px] bg-card-bg border-r border-border-gray z-50 transition-transform duration-300 flex flex-col ${
-          isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-        }`}
+        className={`fixed left-0 top-0 h-screen w-[320px] bg-card-bg border-r border-border-gray z-50 transition-transform duration-300 flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+          }`}
       >
-        {/* Close Button (Mobile) */}
         <button
           onClick={toggleSidebar}
           className="absolute top-4 right-4 lg:hidden w-8 h-8 flex items-center justify-center rounded-lg hover:bg-hover-gray z-10"
+          type="button"
         >
           <X className="w-5 h-5 text-secondary-text" />
         </button>
 
         <div className="flex-1 overflow-y-auto">
-          {/* Header */}
           <div className="p-6 border-b border-border-gray">
             <div className="flex justify-center mb-3">
               <img
@@ -163,6 +153,7 @@ const PriceGenixSidebar = ({
             <button
               onClick={() => navigate('/dashboard')}
               className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-card border border-border-gray hover:shadow-premium-md hover:border-secondary-text transition-all duration-200 group"
+              type="button"
             >
               <Home
                 className="w-3.5 h-3.5 text-secondary-text group-hover:text-primary-text transition-colors"
@@ -174,7 +165,6 @@ const PriceGenixSidebar = ({
             </button>
           </div>
 
-          {/* Data Upload */}
           <div className="p-4 border-b border-border-gray">
             <div className="flex items-center gap-2 mb-3">
               <Upload className="w-4 h-4 text-secondary-text" strokeWidth={2} />
@@ -185,17 +175,16 @@ const PriceGenixSidebar = ({
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className={`relative border-2 border-dashed rounded-lg p-2 text-center transition-all duration-300 mb-3 ${
-                isDragging
-                  ? 'border-primary-text bg-gradient-card'
-                  : uploadedFile
+              className={`relative border-2 border-dashed rounded-lg p-2 text-center transition-all duration-300 mb-3 ${isDragging
+                ? 'border-primary-text bg-gradient-card'
+                : uploadedFile
                   ? 'border-green-300 bg-green-50/30'
                   : 'border-border-gray hover:border-secondary-text hover:bg-gradient-card cursor-pointer'
-              }`}
+                }`}
             >
               <input
-              ref={inputRef}
-              type="file"
+                ref={inputRef}
+                type="file"
                 id="sidebar-file-upload"
                 className="hidden"
                 accept=".csv,.xlsx,.xls"
@@ -227,23 +216,36 @@ const PriceGenixSidebar = ({
                     handleRemoveFile();
                   }}
                   className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-white rounded-full shadow-premium flex items-center justify-center hover:bg-red-50 transition-colors border border-border-gray"
+                  type="button"
                 >
                   <X className="w-2.5 h-2.5 text-secondary-text hover:text-red-500" />
                 </button>
               )}
             </div>
 
-            {/* RUN ENGINE BUTTON - centered icon + text together */}
             <button
               onClick={onRunOptimization}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-success text-white rounded-xl font-bold text-base shadow-premium-lg transition-all duration-200 hover:scale-[1.02] hover:brightness-110 active:scale-100"
+              disabled={isOptimizing || !uploadedFile}
+              className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-base shadow-premium-lg transition-all duration-200 ${isOptimizing || !uploadedFile
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-gradient-success text-white hover:brightness-110 active:scale-100'
+                }`}
+              type="button"
             >
-              <Play className="w-4 h-4 fill-white flex-shrink-0" strokeWidth={0} />
-              <span className="leading-none">Run Genie</span>
+              {isOptimizing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" strokeWidth={2} />
+                  <span className="leading-none">Optimizing...</span>
+                </>
+              ) : (
+                <>
+                  <Play className="w-4 h-4 fill-white flex-shrink-0" strokeWidth={0} />
+                  <span className="leading-none">Run Genie</span>
+                </>
+              )}
             </button>
           </div>
 
-          {/* Objective */}
           <div className="p-4 border-b border-border-gray">
             <div className="flex items-center gap-2 mb-3">
               <Target className="w-4 h-4 text-secondary-text" strokeWidth={2} />
@@ -251,31 +253,37 @@ const PriceGenixSidebar = ({
             </div>
 
             <div className="space-y-2">
-              {optimizationOptions.map((option) => (
-                <button
-                  key={option.id}
-                  onClick={() => onOptimizationChange(option.id)}
-                  className={`w-full flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 border-2 ${
-                    selectedOptimization === option.id
-                      ? 'border-primary-text bg-primary-text text-white shadow-premium-lg'
-                      : 'border-border-gray bg-white text-secondary-text hover:border-secondary-text hover:shadow-premium'
-                  }`}
-                >
-                  <option.icon
-                    className={`w-5 h-5 flex-shrink-0 ${
-                      selectedOptimization === option.id ? 'text-white' : 'text-secondary-text'
-                    }`}
-                    strokeWidth={2}
-                  />
-                  <span className="text-sm font-semibold text-left flex-1">
-                    {option.label}
-                  </span>
-                </button>
-              ))}
+              {optimizationOptions.map((option) => {
+                const isActive = selectedOptimization === option.id;
+                const isDisabled = option.disabled;
+                const Icon = option.icon;
+
+                return (
+                  <button
+                    key={option.id}
+                    onClick={() => !isDisabled && onOptimizationChange(option.id)}
+                    disabled={isDisabled}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 border-2 ${isDisabled
+                      ? 'border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60'
+                      : isActive
+                        ? 'border-primary-text bg-primary-text text-white shadow-premium-lg cursor-pointer'
+                        : 'border-border-gray bg-white text-secondary-text hover:border-secondary-text hover:shadow-premium cursor-pointer'
+                      }`}
+                    type="button"
+                  >
+                    <Icon
+                      className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-white' : 'text-secondary-text'}`}
+                      strokeWidth={2}
+                    />
+                    <span className="text-sm font-semibold text-left flex-1">
+                      {option.label}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Global Constraints */}
           <div className="p-4 border-b border-border-gray">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -288,6 +296,7 @@ const PriceGenixSidebar = ({
                   onClick={handleAddConstraint}
                   className="w-7 h-7 flex items-center justify-center rounded-lg bg-chart-green hover:bg-green-600 text-white transition-colors shadow-premium"
                   title="Add Constraint"
+                  type="button"
                 >
                   <Plus className="w-4 h-4" strokeWidth={2.5} />
                 </button>
@@ -316,6 +325,7 @@ const PriceGenixSidebar = ({
                         <button
                           onClick={() => handleRemoveConstraint(index)}
                           className="w-5 h-5 flex items-center justify-center rounded-lg hover:bg-red-50 transition-colors"
+                          type="button"
                         >
                           <Trash2 className="w-3 h-3 text-secondary-text hover:text-red-500" />
                         </button>
@@ -354,14 +364,14 @@ const PriceGenixSidebar = ({
                               Format
                             </label>
                             <select
-                              value={constraint.format || 'percentage'}
+                              value={constraint.format || 'percent'}
                               onChange={(e) =>
                                 handleConstraintChange(index, 'format', e.target.value)
                               }
                               className="w-full px-2 py-1.5 border border-border-gray rounded-lg text-xs font-medium focus:outline-none focus:border-secondary-text focus:shadow-premium bg-white"
                             >
-                              <option value="percentage">Percentage</option>
-                              <option value="number">Numbers</option>
+                              <option value="percent">Percentage</option>
+                              <option value="absolute">Absolute</option>
                             </select>
                           </div>
                         )}
@@ -405,11 +415,11 @@ const PriceGenixSidebar = ({
           </div>
         </div>
 
-        {/* Footer */}
         <div className="border-t border-border-gray bg-card-bg p-4 flex-shrink-0">
           <button
             onClick={onReset}
             className="w-full flex items-center justify-center gap-2 px-3 py-1.5 bg-red-50/50 border border-red-300 text-red-600 rounded-lg hover:bg-red-100 hover:border-red-500 hover:text-red-700 transition-all duration-300 font-medium text-xs"
+            type="button"
           >
             <RotateCcw className="w-3.5 h-3.5" strokeWidth={2} />
             <span>Reset</span>

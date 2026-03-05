@@ -86,6 +86,13 @@ const parsePriceGenixCsvText = (text) => {
     const row = rows[i];
     if (!row || row.length === 0) continue;
 
+    const articleNoRaw = get(row, 'articleno');
+    const brandRaw = get(row, 'brand');
+    const categoryRaw = get(row, 'category');
+    const channelRaw = get(row, 'channel');
+    const storeNoRaw = get(row, 'storeno');
+    const zoneRaw = get(row, 'zone');
+
     const status = get(row, 'status');
     const stockRaw = get(row, 'stock');
     const mopRaw = get(row, 'mop');
@@ -98,11 +105,15 @@ const parsePriceGenixCsvText = (text) => {
     const discountMinRaw = get(row, 'discountmin');
     const discountMaxRaw = get(row, 'discountmax');
 
-    // Your sample uses "Brand" as the thing shown under "Article" in the table.
-    const article = get(row, 'article') || get(row, 'brand') || get(row, 'articleno') || '';
+    const article = articleNoRaw || get(row, 'article') || brandRaw || '';
 
     const isEmptyRow =
       !article &&
+      !brandRaw &&
+      !categoryRaw &&
+      !channelRaw &&
+      !storeNoRaw &&
+      !zoneRaw &&
       !status &&
       !stockRaw &&
       !mopRaw &&
@@ -129,6 +140,12 @@ const parsePriceGenixCsvText = (text) => {
 
     previewRows.push({
       article,
+      articleNo: article,
+      brand: brandRaw,
+      category: categoryRaw,
+      channel: channelRaw,
+      storeNo: storeNoRaw,
+      zone: zoneRaw,
       status,
       stock,
       mop,
@@ -160,28 +177,38 @@ const normalizeHeader = (h) => {
   const s = String(h || '').replace(/\uFEFF/g, '').trim().toLowerCase();
   if (!s) return '';
 
+  const compact = s
+    .replace(/\./g, '')
+    .replace(/,/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
   // Article columns
-  if (s === 'article') return 'article';
-  if (s === 'brand') return 'brand';
-  if (s === 'article no.' || s === 'article no' || s === 'article number' || s === 'article no,') return 'articleno';
+  if (compact === 'article') return 'article';
+  if (compact === 'article no' || compact === 'article number') return 'articleno';
+  if (compact === 'brand') return 'brand';
+  if (compact === 'category') return 'category';
+  if (compact === 'channel') return 'channel';
+  if (compact === 'store no' || compact === 'store number') return 'storeno';
+  if (compact === 'zone') return 'zone';
 
   // Core columns
-  if (s === 'status') return 'status';
-  if (s === 'stock') return 'stock';
-  if (s === 'mop') return 'mop';
-  if (s === 'nlc') return 'nlc';
+  if (compact === 'status') return 'status';
+  if (compact === 'stock') return 'stock';
+  if (compact === 'mop') return 'mop';
+  if (compact === 'nlc') return 'nlc';
 
   // Price bounds
-  if (s === 'max. price' || s === 'max price') return 'maxprice';
-  if (s === 'min. price' || s === 'min price') return 'minprice';
+  if (compact === 'max price') return 'maxprice';
+  if (compact === 'min price') return 'minprice';
 
   // Percent constraints
-  if (s === 'stock min. %' || s === 'stock min %' || s === 'stock min.%' || s === 'stock min%') return 'stockmin';
-  if (s === 'stock max. %' || s === 'stock max %' || s === 'stock max.%' || s === 'stock max%') return 'stockmax';
-  if (s === 'discount min. %' || s === 'discount min %' || s === 'discount min.%' || s === 'discount min%') return 'discountmin';
-  if (s === 'discount max. %' || s === 'discount max %' || s === 'discount max.%' || s === 'discount max%') return 'discountmax';
+  if (compact === 'stock min %' || compact === 'stock min%') return 'stockmin';
+  if (compact === 'stock max %' || compact === 'stock max%') return 'stockmax';
+  if (compact === 'discount min %' || compact === 'discount min%') return 'discountmin';
+  if (compact === 'discount max %' || compact === 'discount max%') return 'discountmax';
 
-  return s.replace(/\s+/g, '');
+  return compact.replace(/\s+/g, '');
 };
 
 // CSV parser supporting:
