@@ -365,7 +365,10 @@ export const transformPriceGenixResponse = (backendData, originalRows) => {
       profitUnit,
       discount,
       discountPercent,
-      discountUnit: Math.round(discountUnit)
+      discountUnit: Math.round(discountUnit),
+      pedBasis: round(toSafeNumber(brandData.ped_basis, 0), 4),
+      saleabilityScale: round(toSafeNumber(brandData.saleability_scale, 0), 4),
+      saleabilityRank: Math.max(0, Math.round(toSafeNumber(brandData.saleability_rank, 0)))
     };
   });
 };

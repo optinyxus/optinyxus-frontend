@@ -390,7 +390,10 @@ const PriceGenix = () => {
         profitUnit: 0,
         discount: 0,
         discountPercent: 0,
-        discountUnit: 0
+        discountUnit: 0,
+        pedBasis: 0,
+        saleabilityScale: 0,
+        saleabilityRank: 0
       }));
 
       const result = await runPriceGenixOptimization(selectedOptimization, {
@@ -707,18 +710,12 @@ const PriceGenix = () => {
       stock: acc.stock + toNumericValue(row?.stock),
       units: acc.units + toNumericValue(row?.units),
       sales: acc.sales + toNumericValue(row?.sales),
-      profit: acc.profit + toNumericValue(row?.profit),
-      profitUnit: acc.profitUnit + toNumericValue(row?.profitUnit),
-      discount: acc.discount + toNumericValue(row?.discount),
-      discountUnit: acc.discountUnit + toNumericValue(row?.discountUnit)
+      profit: acc.profit + toNumericValue(row?.profit)
     }), {
       stock: 0,
       units: 0,
       sales: 0,
-      profit: 0,
-      profitUnit: 0,
-      discount: 0,
-      discountUnit: 0
+      profit: 0
     });
   }, [resultsData]);
 
@@ -733,7 +730,6 @@ const PriceGenix = () => {
     const backendValue = getPortfolioValue(key);
     return backendValue !== null && backendValue !== undefined && backendValue !== '' ? backendValue : fallbackValue;
   };
-
 
   const renderPopup = () => {
     if (!showPopup) return null;
@@ -1806,7 +1802,7 @@ const PriceGenix = () => {
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full text-[10px] sm:text-xs min-w-[2300px]">
+                  <table className="w-full text-[10px] sm:text-xs min-w-[2550px] table-auto">
                     <thead className="bg-gray-50 border-b-2 border-gray-300">
                       <tr>
                         <th className="sticky left-0 z-10 bg-gray-50 text-left py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 border-r-2 border-gray-300 whitespace-nowrap">Brand</th>
@@ -1833,15 +1829,17 @@ const PriceGenix = () => {
                         <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900">NLC</th>
                         <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Max. Price</th>
                         <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Min. Price</th>
-                        <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 bg-emerald-50">Test Price</th>
+                        <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 bg-emerald-50 whitespace-nowrap">Test Price</th>
                         <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900">Units</th>
                         <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900">Sales</th>
                         <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900">Profit</th>
                         <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900">Profitability</th>
-                        <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900">Profit/Unit</th>
+                        <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Profit/Unit</th>
                         <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900">Discount</th>
-                        <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900">Discount %</th>
-                        <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900">Discount/Unit</th>
+                        <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Discount %</th>
+                        <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Discount/Unit</th>
+                        <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Saleability Rank</th>
+                        <th className="text-right py-2 sm:py-2.5 px-2 sm:px-3 font-semibold text-gray-900 whitespace-nowrap">Saleability Scale</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white">
@@ -1853,7 +1851,7 @@ const PriceGenix = () => {
                         >
                           <td className={`sticky left-0 z-10 py-2 sm:py-2.5 px-2 sm:px-3 font-medium text-gray-900 border-r-2 border-gray-200 ${getArticleLevelConstraintColor(row.article) || "bg-white group-hover:bg-gray-50"}`}>{row.brand || '-'}</td>
                           <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-gray-700">{row.article}</td>
-                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-gray-700">{row.category || '-'}</td>
+                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-gray-700 whitespace-nowrap">{row.category || '-'}</td>
                           <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-gray-700">{row.channel || '-'}</td>
                           <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-gray-700">{row.storeNo || '-'}</td>
                           <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-gray-700">{row.zone || '-'}</td>
@@ -1940,6 +1938,8 @@ const PriceGenix = () => {
                           <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">₹{row.discount.toLocaleString()}</td>
                           <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">{row.discountPercent}%</td>
                           <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">₹{row.discountUnit.toLocaleString()}</td>
+                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">{formatPortfolioValue(row.saleabilityRank, 'integer')}</td>
+                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">{formatPortfolioValue(row.saleabilityScale, 'number')}</td>
                         </tr>
                       ))}
                       <tr className="border-b border-gray-100 bg-gray-100 font-bold">
@@ -1967,11 +1967,17 @@ const PriceGenix = () => {
                             <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-500">-</td>
                           </>
                         )}
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700">
+                          {formatPortfolioValue(getPortfolioValue('portfolio_mop'), 'currency')}
+                        </td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700">
+                          {formatPortfolioValue(getPortfolioValue('portfolio_nlc'), 'currency')}
+                        </td>
                         <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-500">-</td>
                         <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-500">-</td>
-                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-500">-</td>
-                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-500">-</td>
-                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-500">-</td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700">
+                          {formatPortfolioValue(getPortfolioValue('portfolio_test_price'), 'currency')}
+                        </td>
                         <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700">
                           {formatPortfolioValue(backendOrFallback('total_units', resultsPortfolioSums.units), 'integer')}
                         </td>
@@ -1991,23 +1997,19 @@ const PriceGenix = () => {
                           )}
                         </td>
                         <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700">
-                          {formatPortfolioValue(resultsPortfolioSums.profitUnit, 'currency')}
+                          {formatPortfolioValue(getPortfolioValue('portfolio_profit_per_unit'), 'currency')}
                         </td>
                         <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700">
-                          {formatPortfolioValue(resultsPortfolioSums.discount, 'currency')}
+                          {formatPortfolioValue(getPortfolioValue('portfolio_discount_total'), 'currency')}
                         </td>
                         <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700">
-                          {formatPortfolioValue(
-                            backendOrFallback(
-                              'portfolio_discount_percent',
-                              resultsPortfolioSums.sales > 0 ? (resultsPortfolioSums.discount / resultsPortfolioSums.sales) * 100 : 0
-                            ),
-                            'percent'
-                          )}
+                          {formatPortfolioValue(getPortfolioValue('portfolio_discount_percent'), 'percent')}
                         </td>
                         <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-700">
-                          {formatPortfolioValue(resultsPortfolioSums.discountUnit, 'currency')}
+                          {formatPortfolioValue(getPortfolioValue('portfolio_discount_per_unit'), 'currency')}
                         </td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-500">-</td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-500">-</td>
                       </tr>
                     </tbody>
                   </table>
