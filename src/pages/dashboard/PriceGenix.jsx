@@ -680,13 +680,16 @@ const PriceGenix = () => {
     }
 
     if (type === 'currency') {
-      return `₹${parsed.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+      return `₹${Math.round(parsed).toLocaleString('en-IN')}`;
     }
     if (type === 'percent') {
       return `${parsed.toLocaleString('en-IN', { maximumFractionDigits: 2 })}%`;
     }
     if (type === 'integer') {
       return Math.round(parsed).toLocaleString('en-IN');
+    }
+    if (type === 'scale') {
+      return parsed.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
     return parsed.toLocaleString('en-IN', { maximumFractionDigits: 2 });
   };
@@ -854,13 +857,13 @@ const PriceGenix = () => {
                     </tr>
                     <tr className="border-b-2 border-gray-300 hover:bg-gray-50 transition-colors">
                       <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Test</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹{currentPerformanceData.test.sales.toLocaleString()}</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹{currentPerformanceData.test.profit.toLocaleString()}</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹{currentPerformanceData.test.discount.toLocaleString()}</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{currentPerformanceData.test.units.toLocaleString()}</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{currentPerformanceData.test.profitability}%</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹{currentPerformanceData.test.avgSalePrice.toLocaleString()}</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹{currentPerformanceData.test.discountUnit.toLocaleString()}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹{Math.round(Number(hasResults ? (getPortfolioValue('total_gmv') ?? currentPerformanceData.test.sales) : currentPerformanceData.test.sales)).toLocaleString('en-IN')}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹{Math.round(Number(hasResults ? (getPortfolioValue('total_profit') ?? currentPerformanceData.test.profit) : currentPerformanceData.test.profit)).toLocaleString('en-IN')}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹{Math.round(Number(hasResults ? (getPortfolioValue('total_discount') ?? getPortfolioValue('portfolio_discount_total') ?? currentPerformanceData.test.discount) : currentPerformanceData.test.discount)).toLocaleString('en-IN')}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{Math.round(Number(hasResults ? (getPortfolioValue('total_units') ?? currentPerformanceData.test.units) : currentPerformanceData.test.units)).toLocaleString('en-IN')}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{Number(hasResults ? (getPortfolioValue('margin_percent') ?? getPortfolioValue('portfolio_margin_percent') ?? currentPerformanceData.test.profitability) : currentPerformanceData.test.profitability).toLocaleString('en-IN', { maximumFractionDigits: 2 })}%</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹{Math.round(Number(hasResults ? (getPortfolioValue('test_price') ?? getPortfolioValue('portfolio_test_price') ?? currentPerformanceData.test.avgSalePrice) : currentPerformanceData.test.avgSalePrice)).toLocaleString('en-IN')}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹{Math.round(Number(hasResults ? (getPortfolioValue('discount_per_unit') ?? getPortfolioValue('portfolio_discount_per_unit') ?? currentPerformanceData.test.discountUnit) : currentPerformanceData.test.discountUnit)).toLocaleString('en-IN')}</td>
                     </tr>
                     <tr className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
                       <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Growth </td>
@@ -1646,12 +1649,12 @@ const PriceGenix = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-[10px] sm:text-xs">
                     <div>
-                      <p className="text-gray-500">Base Sales</p>
-                      <p className="font-semibold text-gray-900">₹{(mockPerformanceData.base.sales / 1000000).toFixed(1)}M</p>
+                      <p className="text-gray-500">Test Sales</p>
+                      <p className="font-semibold text-gray-900">{formatPortfolioValue(backendOrFallback('total_gmv', resultsPortfolioSums.sales), 'currency')}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-gray-500">Test Sales</p>
-                      <p className="font-semibold text-gray-900">₹{(mockPerformanceData.test.sales / 1000000).toFixed(1)}M</p>
+                      <p className="text-gray-500">Test Price</p>
+                      <p className="font-semibold text-gray-900">{formatPortfolioValue(getPortfolioValue('portfolio_test_price'), 'currency')}</p>
                     </div>
                   </div>
                 </div>
@@ -1860,7 +1863,7 @@ const PriceGenix = () => {
                               {row.status}
                             </span>}
                           </td>
-                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">{row.stock.toLocaleString()}</td>
+                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">{row.stock != null ? Math.round(row.stock).toLocaleString('en-IN') : '-'}</td>
                           {!hideArticleLevelConstraints && stockConstraintsEnabled && (
                             <>
                               <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right">
@@ -1925,21 +1928,21 @@ const PriceGenix = () => {
                               </td>
                             </>
                           )}
-                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">₹{row.mop.toLocaleString()}</td>
-                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">₹{row.nlc.toLocaleString()}</td>
-                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">{row.maxPrice > 0 ? `₹${row.maxPrice.toLocaleString()}` : '-'}</td>
-                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">{row.minPrice > 0 ? `₹${row.minPrice.toLocaleString()}` : '-'}</td>
-                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right font-bold text-gray-900 bg-emerald-50">₹{row.testPrice.toLocaleString()}</td>
-                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">{row.units.toLocaleString()}</td>
-                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">₹{row.sales.toLocaleString()}</td>
-                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">₹{row.profit.toLocaleString()}</td>
+                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">₹{Math.round(row.mop).toLocaleString('en-IN')}</td>
+                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">₹{Math.round(row.nlc).toLocaleString('en-IN')}</td>
+                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">{row.maxPrice > 0 ? `₹${Math.round(row.maxPrice).toLocaleString('en-IN')}` : '-'}</td>
+                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">{row.minPrice > 0 ? `₹${Math.round(row.minPrice).toLocaleString('en-IN')}` : '-'}</td>
+                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right font-bold text-gray-900 bg-emerald-50">₹{Math.round(row.testPrice).toLocaleString('en-IN')}</td>
+                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">{Math.round(row.units).toLocaleString('en-IN')}</td>
+                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">₹{Math.round(row.sales).toLocaleString('en-IN')}</td>
+                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">₹{Math.round(row.profit).toLocaleString('en-IN')}</td>
                           <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">{row.profitability}%</td>
-                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">₹{row.profitUnit.toLocaleString()}</td>
-                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">₹{row.discount.toLocaleString()}</td>
+                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">₹{Math.round(row.profitUnit).toLocaleString('en-IN')}</td>
+                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">₹{Math.round(row.discount).toLocaleString('en-IN')}</td>
                           <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">{row.discountPercent}%</td>
-                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">₹{row.discountUnit.toLocaleString()}</td>
+                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">₹{Math.round(row.discountUnit).toLocaleString('en-IN')}</td>
                           <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">{formatPortfolioValue(row.saleabilityRank, 'integer')}</td>
-                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">{formatPortfolioValue(row.saleabilityScale, 'number')}</td>
+                          <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right text-gray-600">{formatPortfolioValue(row.saleabilityScale, 'scale')}</td>
                         </tr>
                       ))}
                       <tr className="border-b border-gray-100 bg-gray-100 font-bold">
@@ -2176,7 +2179,7 @@ const PriceGenix = () => {
                               </td>
 
                               <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-right text-gray-600">
-                                {stock?.toLocaleString?.() ?? stock ?? '-'}
+                                {stock !== null && stock !== undefined && stock !== '' ? Math.round(Number(stock)).toLocaleString('en-IN') : '-'}
                               </td>
 
                               {!hideArticleLevelConstraints && stockConstraintsEnabled && (
@@ -2246,16 +2249,16 @@ const PriceGenix = () => {
                               )}
 
                               <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-right text-gray-600">
-                                {mop !== null && mop !== undefined && mop !== '' ? `₹${Number(mop).toLocaleString()}` : '-'}
+                                {mop !== null && mop !== undefined && mop !== '' ? `₹${Math.round(Number(mop)).toLocaleString('en-IN')}` : '-'}
                               </td>
                               <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-right text-gray-600">
-                                {nlc !== null && nlc !== undefined && nlc !== '' ? `₹${Number(nlc).toLocaleString()}` : '-'}
+                                {nlc !== null && nlc !== undefined && nlc !== '' ? `₹${Math.round(Number(nlc)).toLocaleString('en-IN')}` : '-'}
                               </td>
                               <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-right text-gray-600">
-                                {maxPrice !== null && maxPrice !== undefined && maxPrice !== '' ? `₹${Number(maxPrice).toLocaleString()}` : '-'}
+                                {maxPrice !== null && maxPrice !== undefined && maxPrice !== '' ? `₹${Math.round(Number(maxPrice)).toLocaleString('en-IN')}` : '-'}
                               </td>
                               <td className="py-1.5 sm:py-2 px-1 sm:px-1.5 text-right text-gray-600">
-                                {minPrice !== null && minPrice !== undefined && minPrice !== '' ? `₹${Number(minPrice).toLocaleString()}` : '-'}
+                                {minPrice !== null && minPrice !== undefined && minPrice !== '' ? `₹${Math.round(Number(minPrice)).toLocaleString('en-IN')}` : '-'}
                               </td>
                             </tr>
                           );
