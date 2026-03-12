@@ -17,61 +17,6 @@ const mockOptimizationResults = [
   { article: 'Portfolio', status: '', stock: 6000, mop: 28878, nlc: 24436, maxPrice: 0, minPrice: 0, testPrice: 26508, units: 2880, sales: 76342235, profit: 5965561, profitability: 7.81, profitUnit: 2071, discount: 6827464, discountPercent: 8.2, discountUnit: 2371 },
 ];
 
-const generateTop50MockData = (metric) => {
-  const baseData = [
-    { id: '#A1234', name: 'Premium Laptop Pro', sales: 4185125, profit: 1255538, units: 13325, discount: 18500, avgPrice: 313836, maxPrice: 368609, minPrice: 245000 },
-    { id: '#A1235', name: 'Wireless Headphones Elite', sales: 3850000, profit: 1155000, units: 15400, discount: 15400, avgPrice: 250000, maxPrice: 298000, minPrice: 198000 },
-    { id: '#A1236', name: 'Smart Watch Pro', sales: 3200000, profit: 960000, units: 16000, discount: 12800, avgPrice: 200000, maxPrice: 245000, minPrice: 165000 },
-    { id: '#A1237', name: 'Gaming Console X', sales: 2950000, profit: 885000, units: 9833, discount: 11800, avgPrice: 300000, maxPrice: 358000, minPrice: 275000 },
-    { id: '#A1238', name: 'Tablet Ultra', sales: 2750000, profit: 825000, units: 11000, discount: 11000, avgPrice: 250000, maxPrice: 289000, minPrice: 220000 },
-    { id: '#A1239', name: '4K Monitor Premium', sales: 2580000, profit: 774000, units: 8600, discount: 10320, avgPrice: 300000, maxPrice: 345000, minPrice: 268000 },
-    { id: '#A1240', name: 'Mechanical Keyboard RGB', sales: 2350000, profit: 705000, units: 23500, discount: 9400, avgPrice: 100000, maxPrice: 125000, minPrice: 85000 },
-    { id: '#A1241', name: 'Wireless Mouse Pro', sales: 2180000, profit: 654000, units: 43600, discount: 8720, avgPrice: 50000, maxPrice: 62000, minPrice: 42000 },
-    { id: '#A1242', name: 'USB-C Hub Elite', sales: 1950000, profit: 585000, units: 39000, discount: 7800, avgPrice: 50000, maxPrice: 58000, minPrice: 45000 },
-    { id: '#A1243', name: 'External SSD 1TB', sales: 1820000, profit: 546000, units: 9100, discount: 7280, avgPrice: 200000, maxPrice: 235000, minPrice: 178000 },
-  ];
-
-  return baseData.sort((a, b) => b[metric] - a[metric]);
-};
-
-const generateTop80MockData = (metric) => {
-  const baseData = [
-    { id: '#B5001', name: 'Premium Laptop Pro Max', sales: 6478502, profit: 1943551, units: 20595, discount: 25914, avgPrice: 314500, maxPrice: 371289, minPrice: 268000 },
-    { id: '#B5002', name: 'Professional Camera Kit', sales: 5890000, profit: 1767000, units: 19633, discount: 23560, avgPrice: 300000, maxPrice: 358000, minPrice: 265000 },
-    { id: '#B5003', name: 'Studio Microphone Pro', sales: 5450000, profit: 1635000, units: 27250, discount: 21800, avgPrice: 200000, maxPrice: 245000, minPrice: 175000 },
-    { id: '#B5004', name: 'Graphics Card RTX', sales: 5120000, profit: 1536000, units: 6400, discount: 20480, avgPrice: 800000, maxPrice: 958000, minPrice: 725000 },
-    { id: '#B5005', name: 'Gaming Laptop Elite', sales: 4850000, profit: 1455000, units: 9700, discount: 19400, avgPrice: 500000, maxPrice: 598000, minPrice: 445000 },
-    { id: '#B5006', name: 'Drone 4K Professional', sales: 4580000, profit: 1374000, units: 9160, discount: 18320, avgPrice: 500000, maxPrice: 578000, minPrice: 458000 },
-    { id: '#B5007', name: 'Smartwatch Ultra Pro', sales: 4320000, profit: 1296000, units: 18000, discount: 17280, avgPrice: 240000, maxPrice: 289000, minPrice: 215000 },
-    { id: '#B5008', name: 'Bluetooth Speaker Premium', sales: 4050000, profit: 1215000, units: 27000, discount: 16200, avgPrice: 150000, maxPrice: 178000, minPrice: 135000 },
-    { id: '#B5009', name: 'Webcam 4K Pro', sales: 3890000, profit: 1167000, units: 32417, discount: 15560, avgPrice: 120000, maxPrice: 145000, minPrice: 105000 },
-    { id: '#B5010', name: 'USB Microphone Studio', sales: 3650000, profit: 1095000, units: 36500, discount: 14600, avgPrice: 100000, maxPrice: 125000, minPrice: 88000 },
-    { id: '#B5011', name: 'Ring Light Professional', sales: 3420000, profit: 1026000, units: 42750, discount: 13680, avgPrice: 80000, maxPrice: 98000, minPrice: 72000 },
-    { id: '#B5012', name: 'HDMI Cable Premium 2m', sales: 3180000, profit: 954000, units: 106000, discount: 12720, avgPrice: 30000, maxPrice: 38000, minPrice: 26000 },
-  ];
-
-  return baseData.sort((a, b) => b[metric] - a[metric]);
-};
-
-const mockTopArticlesSummary = {
-  top50: {
-    sales: 41851258,
-    avgPrice: 3138364,
-    maxPrice: 3686090,
-    minPrice: 245000,
-    discount: 18500,
-    count: 1552
-  },
-  top80: {
-    sales: 64785025,
-    avgPrice: 5559416,
-    maxPrice: 5712895,
-    minPrice: 268000,
-    discount: 25914,
-    count: 2480
-  }
-};
-
 const mockPerformanceData = {
   base: {
     sales: 71923147,
@@ -203,7 +148,6 @@ const PriceGenix = () => {
 
   const [currentPerformanceData, setCurrentPerformanceData] = useState(mockPerformanceData);
   const [currentPromotionData, setCurrentPromotionData] = useState(mockPromotionData);
-  const [currentTopArticlesSummary, setCurrentTopArticlesSummary] = useState(mockTopArticlesSummary);
 
   const [hideArticleLevelConstraints, setHideArticleLevelConstraints] = useState(false);
   const [stockConstraintsEnabled, setStockConstraintsEnabled] = useState(true);
@@ -557,23 +501,6 @@ const PriceGenix = () => {
     }));
   };
 
-  const getFormattedValue = (value, metric) => {
-    if (metric === 'sales' || metric === 'profit' || metric === 'discount') {
-      return `₹${(value / 100000).toFixed(2)}L`;
-    }
-    return value.toLocaleString();
-  };
-
-  const getMetricLabel = (metric) => {
-    const labels = {
-      sales: 'Sales',
-      profit: 'Profit',
-      units: 'Units',
-      discount: 'Discount'
-    };
-    return labels[metric] || 'Sales';
-  };
-
   const parseConstraintsToMap = (constraintsString) => {
     const map = {
       sales: '',
@@ -734,6 +661,132 @@ const PriceGenix = () => {
     return backendValue !== null && backendValue !== undefined && backendValue !== '' ? backendValue : fallbackValue;
   };
 
+  const formatCurrency = (value) => formatPortfolioValue(value, 'currency');
+  const formatInteger = (value) => formatPortfolioValue(value, 'integer');
+  const formatPercent = (value) => formatPortfolioValue(value, 'percent');
+
+  const controlMetrics = {
+    sales: toNumericValue(currentPerformanceData?.base?.sales),
+    profit: toNumericValue(currentPerformanceData?.base?.profit),
+    discount: toNumericValue(currentPerformanceData?.base?.discount),
+    units: toNumericValue(currentPerformanceData?.base?.units),
+    profitability: toNumericValue(currentPerformanceData?.base?.profitability),
+    avgSalePrice: toNumericValue(currentPerformanceData?.base?.avgSalePrice),
+    discountUnit: toNumericValue(currentPerformanceData?.base?.discountUnit),
+  };
+
+  const testMetrics = {
+    sales: toNumericValue(hasResults ? (getPortfolioValue('total_gmv') ?? currentPerformanceData?.test?.sales) : currentPerformanceData?.test?.sales),
+    profit: toNumericValue(hasResults ? (getPortfolioValue('total_profit') ?? currentPerformanceData?.test?.profit) : currentPerformanceData?.test?.profit),
+    discount: toNumericValue(
+      hasResults
+        ? (getPortfolioValue('total_discount') ?? getPortfolioValue('portfolio_discount_total') ?? currentPerformanceData?.test?.discount)
+        : currentPerformanceData?.test?.discount
+    ),
+    units: toNumericValue(hasResults ? (getPortfolioValue('total_units') ?? currentPerformanceData?.test?.units) : currentPerformanceData?.test?.units),
+    profitability: toNumericValue(
+      hasResults
+        ? (getPortfolioValue('margin_percent') ?? getPortfolioValue('portfolio_margin_percent') ?? currentPerformanceData?.test?.profitability)
+        : currentPerformanceData?.test?.profitability
+    ),
+    avgSalePrice: toNumericValue(
+      hasResults
+        ? (getPortfolioValue('test_price') ?? getPortfolioValue('portfolio_test_price') ?? currentPerformanceData?.test?.avgSalePrice)
+        : currentPerformanceData?.test?.avgSalePrice
+    ),
+    discountUnit: toNumericValue(
+      hasResults
+        ? (getPortfolioValue('discount_per_unit') ?? getPortfolioValue('portfolio_discount_per_unit') ?? currentPerformanceData?.test?.discountUnit)
+        : currentPerformanceData?.test?.discountUnit
+    ),
+  };
+
+  const growthMetrics = {
+    sales: testMetrics.sales - controlMetrics.sales,
+    profit: testMetrics.profit - controlMetrics.profit,
+    discount: testMetrics.discount - controlMetrics.discount,
+    units: testMetrics.units - controlMetrics.units,
+    profitability: testMetrics.profitability - controlMetrics.profitability,
+    avgSalePrice: testMetrics.avgSalePrice - controlMetrics.avgSalePrice,
+    discountUnit: testMetrics.discountUnit - controlMetrics.discountUnit,
+  };
+
+  const toGrowthPercent = (growthValue, controlValue) => {
+    if (!Number.isFinite(controlValue) || controlValue === 0) return 0;
+    return (growthValue / controlValue) * 100;
+  };
+
+  const growthPercentMetrics = {
+    sales: toGrowthPercent(growthMetrics.sales, controlMetrics.sales),
+    profit: toGrowthPercent(growthMetrics.profit, controlMetrics.profit),
+    discount: toGrowthPercent(growthMetrics.discount, controlMetrics.discount),
+    units: toGrowthPercent(growthMetrics.units, controlMetrics.units),
+  };
+
+  const computeTopRowsByThreshold = (sortedRows, metric, thresholdFraction) => {
+    const rows = Array.isArray(sortedRows) ? sortedRows : [];
+    if (rows.length === 0) return [];
+
+    const totalMetric = rows.reduce((sum, row) => sum + toNumericValue(row?.[metric]), 0);
+    if (totalMetric <= 0) return [];
+
+    const threshold = totalMetric * thresholdFraction;
+    const selectedRows = [];
+    let cumulative = 0;
+
+    for (const row of rows) {
+      selectedRows.push(row);
+      cumulative += toNumericValue(row?.[metric]);
+      if (cumulative > threshold) break;
+    }
+
+    return selectedRows;
+  };
+
+  const topArticlesRankedRows = useMemo(() => {
+    const sourceRows = Array.isArray(resultsData) ? resultsData : [];
+    return [...sourceRows]
+      .filter((row) => String(row?.article ?? row?.articleNo ?? '').trim() !== '')
+      .sort((a, b) => toNumericValue(b?.[topArticlesMetric]) - toNumericValue(a?.[topArticlesMetric]));
+  }, [resultsData, topArticlesMetric]);
+
+  const top50Rows = useMemo(
+    () => computeTopRowsByThreshold(topArticlesRankedRows, topArticlesMetric, 0.5),
+    [topArticlesRankedRows, topArticlesMetric]
+  );
+
+  const top80Rows = useMemo(
+    () => computeTopRowsByThreshold(topArticlesRankedRows, topArticlesMetric, 0.8),
+    [topArticlesRankedRows, topArticlesMetric]
+  );
+
+  const summarizeTopRows = (rows) => {
+    const totals = (rows || []).reduce((acc, row) => ({
+      sales: acc.sales + toNumericValue(row?.sales),
+      profit: acc.profit + toNumericValue(row?.profit),
+      units: acc.units + toNumericValue(row?.units),
+      discount: acc.discount + toNumericValue(row?.discount),
+    }), {
+      sales: 0,
+      profit: 0,
+      units: 0,
+      discount: 0,
+    });
+
+    return {
+      ...totals,
+      count: rows?.length ?? 0,
+      profitability: totals.sales > 0 ? (totals.profit / totals.sales) * 100 : 0,
+      avgSalePrice: totals.units > 0 ? totals.sales / totals.units : 0,
+      discountUnit: totals.units > 0 ? totals.discount / totals.units : 0,
+    };
+  };
+
+  const topArticlesSummary = useMemo(() => ({
+    top50: summarizeTopRows(top50Rows),
+    top80: summarizeTopRows(top80Rows),
+  }), [top50Rows, top80Rows]);
+
   const renderPopup = () => {
     if (!showPopup) return null;
 
@@ -847,43 +900,43 @@ const PriceGenix = () => {
                   <tbody className="bg-white">
                     <tr className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
                       <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Control</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹{currentPerformanceData.base.sales.toLocaleString()}</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹{currentPerformanceData.base.profit.toLocaleString()}</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹{currentPerformanceData.base.discount.toLocaleString()}</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{currentPerformanceData.base.units.toLocaleString()}</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{currentPerformanceData.base.profitability}%</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹{currentPerformanceData.base.avgSalePrice.toLocaleString()}</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹{currentPerformanceData.base.discountUnit.toLocaleString()}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(controlMetrics.sales)}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(controlMetrics.profit)}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(controlMetrics.discount)}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatInteger(controlMetrics.units)}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatPercent(controlMetrics.profitability)}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(controlMetrics.avgSalePrice)}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(controlMetrics.discountUnit)}</td>
                     </tr>
                     <tr className="border-b-2 border-gray-300 hover:bg-gray-50 transition-colors">
                       <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Test</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹{Math.round(Number(hasResults ? (getPortfolioValue('total_gmv') ?? currentPerformanceData.test.sales) : currentPerformanceData.test.sales)).toLocaleString('en-IN')}</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹{Math.round(Number(hasResults ? (getPortfolioValue('total_profit') ?? currentPerformanceData.test.profit) : currentPerformanceData.test.profit)).toLocaleString('en-IN')}</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹{Math.round(Number(hasResults ? (getPortfolioValue('total_discount') ?? getPortfolioValue('portfolio_discount_total') ?? currentPerformanceData.test.discount) : currentPerformanceData.test.discount)).toLocaleString('en-IN')}</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{Math.round(Number(hasResults ? (getPortfolioValue('total_units') ?? currentPerformanceData.test.units) : currentPerformanceData.test.units)).toLocaleString('en-IN')}</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{Number(hasResults ? (getPortfolioValue('margin_percent') ?? getPortfolioValue('portfolio_margin_percent') ?? currentPerformanceData.test.profitability) : currentPerformanceData.test.profitability).toLocaleString('en-IN', { maximumFractionDigits: 2 })}%</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹{Math.round(Number(hasResults ? (getPortfolioValue('test_price') ?? getPortfolioValue('portfolio_test_price') ?? currentPerformanceData.test.avgSalePrice) : currentPerformanceData.test.avgSalePrice)).toLocaleString('en-IN')}</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹{Math.round(Number(hasResults ? (getPortfolioValue('discount_per_unit') ?? getPortfolioValue('portfolio_discount_per_unit') ?? currentPerformanceData.test.discountUnit) : currentPerformanceData.test.discountUnit)).toLocaleString('en-IN')}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(testMetrics.sales)}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(testMetrics.profit)}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(testMetrics.discount)}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatInteger(testMetrics.units)}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatPercent(testMetrics.profitability)}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(testMetrics.avgSalePrice)}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(testMetrics.discountUnit)}</td>
                     </tr>
                     <tr className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
                       <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Growth </td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹{currentPerformanceData.growth.sales.toLocaleString()}</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹{currentPerformanceData.growth.profit.toLocaleString()}</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹{currentPerformanceData.growth.discount.toLocaleString()}</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{currentPerformanceData.growth.units.toLocaleString()}</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{currentPerformanceData.growth.profitability.toFixed(2)}%</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹{currentPerformanceData.growth.avgSalePrice.toLocaleString()}</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹{currentPerformanceData.growth.discountUnit.toLocaleString()}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(growthMetrics.sales)}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(growthMetrics.profit)}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(growthMetrics.discount)}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatInteger(growthMetrics.units)}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatPercent(growthMetrics.profitability)}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(growthMetrics.avgSalePrice)}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(growthMetrics.discountUnit)}</td>
                     </tr>
                     <tr className="hover:bg-gray-50 transition-colors">
                       <td className="py-2 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Growth %</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{currentPerformanceData.growthPercent.sales}%</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{currentPerformanceData.growthPercent.profit}%</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{currentPerformanceData.growthPercent.discount}%</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{currentPerformanceData.growthPercent.units}%</td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-400"> </td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-400"> </td>
-                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-400"> </td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatPercent(growthPercentMetrics.sales)}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatPercent(growthPercentMetrics.profit)}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatPercent(growthPercentMetrics.discount)}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatPercent(growthPercentMetrics.units)}</td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-400"></td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-400"></td>
+                      <td className="py-2 sm:py-3 px-3 sm:px-4 text-right text-gray-400"></td>
                     </tr>
                   </tbody>
                 </table>
@@ -901,8 +954,8 @@ const PriceGenix = () => {
     }
 
     if (popupType === 'topArticles') {
-      const currentTop50Data = generateTop50MockData(topArticlesMetric);
-      const currentTop80Data = generateTop80MockData(topArticlesMetric);
+      const currentTop50Data = top50Rows;
+      const currentTop80Data = top80Rows;
       return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowPopup(false)}>
           <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
@@ -1042,23 +1095,23 @@ const PriceGenix = () => {
                       <tbody className="bg-white">
                         <tr className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
                           <td className="py-2.5 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Top 50%</td>
-                          <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹4,18,51,258</td>
-                          <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹31,38,364</td>
-                          <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹1,552</td>
-                          <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹36,86,090</td>
-                          <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">7.50%</td>
-                          <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹26,966</td>
-                          <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹2,375</td>
+                          <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(topArticlesSummary.top50.sales)}</td>
+                          <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(topArticlesSummary.top50.profit)}</td>
+                          <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatInteger(topArticlesSummary.top50.units)}</td>
+                          <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(topArticlesSummary.top50.discount)}</td>
+                          <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatPercent(topArticlesSummary.top50.profitability)}</td>
+                          <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(topArticlesSummary.top50.avgSalePrice)}</td>
+                          <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(topArticlesSummary.top50.discountUnit)}</td>
                         </tr>
                         <tr className="hover:bg-gray-50 transition-colors">
                           <td className="py-2.5 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">Top 80%</td>
-                          <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹6,47,85,025</td>
-                          <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹55,59,416</td>
-                          <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹2,480</td>
-                          <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹57,12,895</td>
-                          <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">8.58%</td>
-                          <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹26,123</td>
-                          <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹2,304</td>
+                          <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(topArticlesSummary.top80.sales)}</td>
+                          <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(topArticlesSummary.top80.profit)}</td>
+                          <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatInteger(topArticlesSummary.top80.units)}</td>
+                          <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(topArticlesSummary.top80.discount)}</td>
+                          <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatPercent(topArticlesSummary.top80.profitability)}</td>
+                          <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(topArticlesSummary.top80.avgSalePrice)}</td>
+                          <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(topArticlesSummary.top80.discountUnit)}</td>
                         </tr>
                       </tbody>
                     </table>
@@ -1086,15 +1139,15 @@ const PriceGenix = () => {
                       <tbody className="bg-white">
                         {currentTop50Data.map((article, index) => (
                           <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">{article.id}</td>
-                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-gray-900">{article.name}</td>
-                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{getFormattedValue(article.sales, 'sales')}</td>
-                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{getFormattedValue(article.profit, 'profit')}</td>
-                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{article.units.toLocaleString()}</td>
-                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{getFormattedValue(article.discount, 'discount')}</td>
-                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{((article.profit / article.sales) * 100).toFixed(2)}%</td>
-                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹{(article.avgPrice / 1000).toFixed(0)}K</td>
-                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹{Math.round(article.discount / article.units).toLocaleString()}</td>
+                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">{article.article ?? article.articleNo ?? '-'}</td>
+                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-gray-900">{article.brand ?? article.category ?? '-'}</td>
+                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(article.sales)}</td>
+                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(article.profit)}</td>
+                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatInteger(article.units)}</td>
+                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(article.discount)}</td>
+                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatPercent(toNumericValue(article.sales) > 0 ? (toNumericValue(article.profit) / toNumericValue(article.sales)) * 100 : 0)}</td>
+                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(toNumericValue(article.units) > 0 ? toNumericValue(article.sales) / toNumericValue(article.units) : 0)}</td>
+                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(toNumericValue(article.units) > 0 ? toNumericValue(article.discount) / toNumericValue(article.units) : 0)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1123,15 +1176,15 @@ const PriceGenix = () => {
                       <tbody className="bg-white">
                         {currentTop80Data.map((article, index) => (
                           <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">{article.id}</td>
-                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-gray-900">{article.name}</td>
-                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{getFormattedValue(article.sales, 'sales')}</td>
-                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{getFormattedValue(article.profit, 'profit')}</td>
-                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{article.units.toLocaleString()}</td>
-                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{getFormattedValue(article.discount, 'discount')}</td>
-                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{((article.profit / article.sales) * 100).toFixed(2)}%</td>
-                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹{(article.avgPrice / 1000).toFixed(0)}K</td>
-                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">₹{Math.round(article.discount / article.units).toLocaleString()}</td>
+                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 font-semibold text-gray-900">{article.article ?? article.articleNo ?? '-'}</td>
+                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-gray-900">{article.brand ?? article.category ?? '-'}</td>
+                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(article.sales)}</td>
+                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(article.profit)}</td>
+                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatInteger(article.units)}</td>
+                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(article.discount)}</td>
+                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatPercent(toNumericValue(article.sales) > 0 ? (toNumericValue(article.profit) / toNumericValue(article.sales)) * 100 : 0)}</td>
+                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(toNumericValue(article.units) > 0 ? toNumericValue(article.sales) / toNumericValue(article.units) : 0)}</td>
+                            <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-right text-gray-700">{formatCurrency(toNumericValue(article.units) > 0 ? toNumericValue(article.discount) / toNumericValue(article.units) : 0)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1670,11 +1723,11 @@ const PriceGenix = () => {
                   <div className="space-y-1 text-[10px] sm:text-xs">
                     <div className="flex justify-between">
                       <span className="text-gray-500">Top 50%</span>
-                      <span className="font-medium text-gray-900">{currentTopArticlesSummary.top50.count.toLocaleString()}</span>
+                      <span className="font-medium text-gray-900">{formatInteger(topArticlesSummary.top50.count)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Top 80%</span>
-                      <span className="font-medium text-gray-900">{currentTopArticlesSummary.top80.count.toLocaleString()}</span>
+                      <span className="font-medium text-gray-900">{formatInteger(topArticlesSummary.top80.count)}</span>
                     </div>
                   </div>
                 </div>
