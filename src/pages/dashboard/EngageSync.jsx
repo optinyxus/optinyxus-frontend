@@ -1,91 +1,531 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../../components/common/Navbar';
 import EngageSyncSidebar from '../../components/sidebars/EngageSyncSidebar';
-import { Zap, MessageSquare, Users, Mail } from 'lucide-react';
+import { X, Users, Zap, ChevronRight, Tag, Activity, RefreshCcw, Heart } from 'lucide-react';
 
+// ─── Schema Data ──────────────────────────────────────────────────────────────
+const SCHEMA_DATA = {
+  rfm: {
+    label: 'RFM',
+    icon: Activity,
+    color: 'indigo',
+    description: 'Recency, Frequency, Monetary segmentation',
+    segments: [
+      { id: 'R1', label: 'R1', description: 'Champions' },
+      { id: 'R2', label: 'R2', description: 'Loyal Customers' },
+      { id: 'R3', label: 'R3', description: 'At Risk' },
+    ],
+    treatments: [
+      { id: 'TR1', label: 'TR1', description: 'Reward & Delight' },
+      { id: 'TR2', label: 'TR2', description: 'Re-engagement' },
+      { id: 'TR3', label: 'TR3', description: 'Win Back Campaign' },
+    ],
+  },
+  loyalty: {
+    label: 'Loyalty',
+    icon: Heart,
+    color: 'rose',
+    description: 'Loyalty tier based segmentation',
+    segments: [
+      { id: 'L1', label: 'L1', description: 'Platinum Members' },
+      { id: 'L2', label: 'L2', description: 'Gold Members' },
+      { id: 'L3', label: 'L3', description: 'Silver Members' },
+      { id: 'L4', label: 'L4', description: 'New Members' },
+    ],
+    treatments: [
+      { id: 'TL1', label: 'TL1', description: 'VIP Exclusive Offer' },
+      { id: 'TL2', label: 'TL2', description: 'Premium Upgrade' },
+      { id: 'TL3', label: 'TL3', description: 'Milestone Reward' },
+      { id: 'TL4', label: 'TL4', description: 'Welcome Journey' },
+    ],
+  },
+  behavior: {
+    label: 'Behavior',
+    icon: Zap,
+    color: 'amber',
+    description: 'Purchase behavior based segmentation',
+    segments: [
+      { id: 'B1', label: 'B1', description: 'High Frequency Buyers' },
+      { id: 'B2', label: 'B2', description: 'Seasonal Shoppers' },
+      { id: 'B3', label: 'B3', description: 'Browse & Abandon' },
+      { id: 'B4', label: 'B4', description: 'One-time Buyers' },
+    ],
+    treatments: [
+      { id: 'TB1', label: 'TB1', description: 'Subscription Offer' },
+      { id: 'TB2', label: 'TB2', description: 'Seasonal Nudge' },
+      { id: 'TB3', label: 'TB3', description: 'Cart Recovery' },
+      { id: 'TB4', label: 'TB4', description: 'Cross-sell Push' },
+    ],
+  },
+  lifecycle: {
+    label: 'Life Cycle',
+    icon: RefreshCcw,
+    color: 'emerald',
+    description: 'Customer life cycle stage segmentation',
+    segments: [
+      { id: 'C1', label: 'C1', description: 'Acquisition' },
+      { id: 'C2', label: 'C2', description: 'Growth' },
+      { id: 'C3', label: 'C3', description: 'Retention' },
+    ],
+    treatments: [
+      { id: 'TC1', label: 'TC1', description: 'Onboarding Flow' },
+      { id: 'TC2', label: 'TC2', description: 'Upsell Program' },
+      { id: 'TC3', label: 'TC3', description: 'Retention Campaign' },
+    ],
+  },
+};
+
+// Colour tokens per schema
+const COLOR_MAP = {
+  indigo: {
+    active: 'bg-indigo-600 border-indigo-600 text-white',
+    inactive: 'border-border-gray bg-white text-secondary-text hover:border-indigo-400 hover:text-indigo-600',
+    segBg: 'bg-indigo-50 border-indigo-200 hover:border-indigo-400',
+    segText: 'text-indigo-700',
+    segBadge: 'bg-indigo-100 text-indigo-700',
+    treatBg: 'bg-purple-50 border-purple-200 hover:border-purple-400',
+    treatText: 'text-purple-700',
+    treatBadge: 'bg-purple-100 text-purple-700',
+    btn: 'bg-indigo-600 hover:bg-indigo-700',
+    iconBg: 'bg-indigo-100',
+    iconColor: 'text-indigo-600',
+  },
+  rose: {
+    active: 'bg-rose-600 border-rose-600 text-white',
+    inactive: 'border-border-gray bg-white text-secondary-text hover:border-rose-400 hover:text-rose-600',
+    segBg: 'bg-rose-50 border-rose-200 hover:border-rose-400',
+    segText: 'text-rose-700',
+    segBadge: 'bg-rose-100 text-rose-700',
+    treatBg: 'bg-pink-50 border-pink-200 hover:border-pink-400',
+    treatText: 'text-pink-700',
+    treatBadge: 'bg-pink-100 text-pink-700',
+    btn: 'bg-rose-600 hover:bg-rose-700',
+    iconBg: 'bg-rose-100',
+    iconColor: 'text-rose-600',
+  },
+  amber: {
+    active: 'bg-amber-500 border-amber-500 text-white',
+    inactive: 'border-border-gray bg-white text-secondary-text hover:border-amber-400 hover:text-amber-600',
+    segBg: 'bg-amber-50 border-amber-200 hover:border-amber-400',
+    segText: 'text-amber-700',
+    segBadge: 'bg-amber-100 text-amber-700',
+    treatBg: 'bg-orange-50 border-orange-200 hover:border-orange-400',
+    treatText: 'text-orange-700',
+    treatBadge: 'bg-orange-100 text-orange-700',
+    btn: 'bg-amber-500 hover:bg-amber-600',
+    iconBg: 'bg-amber-100',
+    iconColor: 'text-amber-600',
+  },
+  emerald: {
+    active: 'bg-emerald-600 border-emerald-600 text-white',
+    inactive: 'border-border-gray bg-white text-secondary-text hover:border-emerald-400 hover:text-emerald-600',
+    segBg: 'bg-emerald-50 border-emerald-200 hover:border-emerald-400',
+    segText: 'text-emerald-700',
+    segBadge: 'bg-emerald-100 text-emerald-700',
+    treatBg: 'bg-teal-50 border-teal-200 hover:border-teal-400',
+    treatText: 'text-teal-700',
+    treatBadge: 'bg-teal-100 text-teal-700',
+    btn: 'bg-emerald-600 hover:bg-emerald-700',
+    iconBg: 'bg-emerald-100',
+    iconColor: 'text-emerald-600',
+  },
+};
+
+// Dummy customer rows for segment popup
+const DUMMY_CUSTOMERS = [
+  { id: 'CUST-001', p1: '—', p2: '—', p3: '—', p4: '—' },
+  { id: 'CUST-002', p1: '—', p2: '—', p3: '—', p4: '—' },
+  { id: 'CUST-003', p1: '—', p2: '—', p3: '—', p4: '—' },
+  { id: 'CUST-004', p1: '—', p2: '—', p3: '—', p4: '—' },
+  { id: 'CUST-005', p1: '—', p2: '—', p3: '—', p4: '—' },
+];
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 const EngageSync = () => {
+  const navigate = useNavigate();
+
+  // Sidebar
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState('customer_data_sample.csv');
-  const [selectedCampaign, setSelectedCampaign] = useState('email');
-  const [channels, setChannels] = useState([
-    { name: 'Email Newsletter', audience: '5000' },
-  ]);
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [isRunning, setIsRunning] = useState(false);
+
+  // Filters (sidebar reflects these too)
+  const [cltvValue, setCltvValue] = useState('All');
+  const [elasticityValue, setElasticityValue] = useState('All');
+
+  // Schema selection
+  const [activeSchema, setActiveSchema] = useState(null);
+
+  // Popup state
+  const [popup, setPopup] = useState(null); // { type: 'segment'|'treatment', schema, item }
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
-  const handleLaunchCampaign = () => {
-    console.log('Launching campaign...');
-    // Add your campaign logic here
+  const handleRunAnalysis = () => {
+    if (!uploadedFile || isRunning) return;
+    setIsRunning(true);
+    setTimeout(() => setIsRunning(false), 2000);
   };
 
-  const channelStats = [
-    { name: 'Email Campaigns', active: 12, sent: '24.5K', icon: Mail },
-    { name: 'Chat Support', active: 8, sent: '18.2K', icon: MessageSquare },
-    { name: 'Customer Portal', active: 156, sent: '45.8K', icon: Users },
-    { name: 'Notifications', active: 24, sent: '32.1K', icon: Zap },
-  ];
+  const openSegmentPopup = (schema, segment) => {
+    setPopup({ type: 'segment', schema, item: segment });
+  };
 
+  const openTreatmentPopup = (schema, treatment) => {
+    setPopup({ type: 'treatment', schema, item: treatment });
+  };
+
+  const closePopup = () => setPopup(null);
+
+  // ── POPUP renderers ────────────────────────────────────────────────────────
+  const renderPopup = () => {
+    if (!popup) return null;
+
+    const schema = SCHEMA_DATA[popup.schema];
+    const colors = COLOR_MAP[schema.color];
+
+    if (popup.type === 'segment') {
+      return (
+        <div
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+          onClick={closePopup}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-gray-200 bg-gray-50 rounded-t-2xl flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${colors.iconBg}`}>
+                  <Users className={`w-5 h-5 ${colors.iconColor}`} strokeWidth={2} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">
+                    Segment {popup.item.label}
+                    <span className="ml-2 text-sm font-normal text-gray-500">— {popup.item.description}</span>
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-0.5">{schema.label} Schema</p>
+                </div>
+              </div>
+              <button
+                onClick={closePopup}
+                className="w-9 h-9 rounded-lg hover:bg-gray-200 flex items-center justify-center transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-5">
+              {/* Definition */}
+              <div>
+                <h4 className="text-sm font-bold text-gray-900 mb-2">Definition</h4>
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 min-h-[80px]">
+                  <p className="text-xs text-gray-400 italic">Definition will be populated here…</p>
+                </div>
+              </div>
+
+              {/* Customer List */}
+              <div>
+                <h4 className="text-sm font-bold text-gray-900 mb-2">Customer List</h4>
+                <div className="border border-gray-200 rounded-xl overflow-x-auto">
+                  <table className="w-full text-xs min-w-[480px]">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-700 w-32">Customer ID</th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-500">Property 1</th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-500">Property 2</th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-500">Property 3</th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-500">Property 4</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-100">
+                      {DUMMY_CUSTOMERS.map((c) => (
+                        <tr key={c.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="py-2.5 px-4 font-medium text-gray-900">{c.id}</td>
+                          <td className="py-2.5 px-4 text-gray-400">{c.p1}</td>
+                          <td className="py-2.5 px-4 text-gray-400">{c.p2}</td>
+                          <td className="py-2.5 px-4 text-gray-400">{c.p3}</td>
+                          <td className="py-2.5 px-4 text-gray-400">{c.p4}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end rounded-b-2xl flex-shrink-0">
+              <button
+                onClick={closePopup}
+                className="px-5 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (popup.type === 'treatment') {
+      const actions = ['Action 1', 'Action 2', 'Action 3'];
+      return (
+        <div
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+          onClick={closePopup}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-gray-200 bg-gray-50 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${colors.iconBg}`}>
+                  <Tag className={`w-5 h-5 ${colors.iconColor}`} strokeWidth={2} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">
+                    Treatment {popup.item.label}
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-0.5">{popup.item.description}</p>
+                </div>
+              </div>
+              <button
+                onClick={closePopup}
+                className="w-9 h-9 rounded-lg hover:bg-gray-200 flex items-center justify-center transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+
+            {/* Actions list */}
+            <div className="p-5 space-y-3">
+              <h4 className="text-sm font-bold text-gray-900 mb-3">Actions</h4>
+              {actions.map((action, idx) => (
+                <div
+                  key={idx}
+                  className={`flex items-center gap-3 p-3.5 rounded-xl border-2 ${colors.treatBg} transition-all cursor-default`}
+                >
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${colors.treatBadge}`}>
+                    {idx + 1}
+                  </div>
+                  <span className={`text-sm font-semibold ${colors.treatText}`}>{action}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end rounded-b-2xl">
+              <button
+                onClick={closePopup}
+                className="px-5 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  // ── MAIN RENDER ────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-main-bg">
-      <EngageSyncSidebar 
-        isOpen={sidebarOpen} 
+      {/* Sidebar */}
+      <EngageSyncSidebar
+        isOpen={sidebarOpen}
         toggleSidebar={toggleSidebar}
         uploadedFile={uploadedFile}
         onFileUpload={setUploadedFile}
-        selectedCampaign={selectedCampaign}
-        onCampaignChange={setSelectedCampaign}
-        channels={channels}
-        onChannelsChange={setChannels}
-        onLaunchCampaign={handleLaunchCampaign}
+        onRunAnalysis={handleRunAnalysis}
+        isRunning={isRunning}
+        cltvValue={cltvValue}
+        onCltvChange={setCltvValue}
+        elasticityValue={elasticityValue}
+        onElasticityChange={setElasticityValue}
       />
+
+      {/* Navbar */}
       <Navbar toggleSidebar={toggleSidebar} showMenuButton={true} currentProduct="engagesync" />
-      
+
+      {/* Main content */}
       <div className="lg:ml-[320px] pt-16">
         <div className="p-4 sm:p-6 space-y-5">
-          <div className="bg-card-bg rounded-2xl p-6 shadow-premium-md border border-border-gray">
-            <h1 className="text-2xl font-bold text-primary-text mb-2">EngageSync Hub</h1>
-            <p className="text-muted-text">Customer engagement and communication synchronization</p>
+
+          {/* ── Page Header ─────────────────────────────────────── */}
+          <div className="bg-card-bg rounded-2xl p-5 sm:p-6 shadow-premium-md border border-border-gray">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold text-primary-text">Segmentation Schema</h1>
+                <p className="text-sm text-muted-text mt-1">
+                  Select a segmentation model to view and manage customer segments and their treatments.
+                </p>
+              </div>
+              {/* Active filter badges */}
+              <div className="flex flex-wrap items-center gap-2">
+                {cltvValue !== 'All' && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold">
+                    CLTV: {cltvValue}
+                    <button onClick={() => setCltvValue('All')} className="hover:text-blue-900">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                {elasticityValue !== 'All' && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-50 border border-violet-200 text-violet-700 text-xs font-semibold">
+                    Elasticity: {elasticityValue}
+                    <button onClick={() => setElasticityValue('All')} className="hover:text-violet-900">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {channelStats.map((channel, index) => (
-              <div key={index} className="bg-card-bg rounded-2xl p-6 shadow-premium-md border border-border-gray hover:shadow-premium-lg transition-all">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-light border border-border-gray flex items-center justify-center">
-                      <channel.icon className="w-6 h-6 text-secondary-text" strokeWidth={2} />
+          {/* ── Schema Buttons ───────────────────────────────────── */}
+          <div className="bg-card-bg rounded-2xl p-4 sm:p-6 shadow-premium-md border border-border-gray">
+            <h2 className="text-sm font-bold text-muted-text uppercase tracking-wider mb-4">
+              Select Segmentation Schema
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {Object.entries(SCHEMA_DATA).map(([key, schema]) => {
+                const colors = COLOR_MAP[schema.color];
+                const isActive = activeSchema === key;
+                const Icon = schema.icon;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setActiveSchema(isActive ? null : key)}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 font-bold transition-all duration-200 shadow-sm hover:shadow-md active:scale-95 ${
+                      isActive ? colors.active : colors.inactive
+                    }`}
+                    type="button"
+                  >
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                      isActive ? 'bg-white/20' : colors.iconBg
+                    }`}>
+                      <Icon className={`w-5 h-5 ${isActive ? 'text-white' : colors.iconColor}`} strokeWidth={2} />
                     </div>
-                    <div>
-                      <h3 className="font-bold text-primary-text">{channel.name}</h3>
-                      <p className="text-xs text-muted-text">{channel.active} Active</p>
-                    </div>
+                    <span className="text-sm">{schema.label}</span>
+                    <span className={`text-[10px] font-normal ${isActive ? 'text-white/80' : 'text-muted-text'}`}>
+                      {schema.segments.length} segments
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ── Segment + Treatment Boxes ────────────────────────── */}
+          {activeSchema && (() => {
+            const schema = SCHEMA_DATA[activeSchema];
+            const colors = COLOR_MAP[schema.color];
+            const Icon = schema.icon;
+            return (
+              <div className="bg-card-bg rounded-2xl p-4 sm:p-6 shadow-premium-md border border-border-gray">
+                {/* Section header */}
+                <div className="flex items-center gap-3 mb-5">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${colors.iconBg}`}>
+                    <Icon className={`w-4.5 h-4.5 ${colors.iconColor}`} strokeWidth={2} />
                   </div>
-                  <div className="px-3 py-1 bg-green-50 border border-green-200 text-green-700 rounded-full text-xs font-semibold">
-                    Live
+                  <div>
+                    <h2 className="text-base sm:text-lg font-bold text-primary-text">{schema.label} Schema</h2>
+                    <p className="text-xs text-muted-text">{schema.description}</p>
                   </div>
                 </div>
-                <div className="flex items-end justify-between">
-                  <div>
-                    <div className="text-2xl font-bold text-primary-text">{channel.sent}</div>
-                    <div className="text-xs text-muted-text">Messages Sent</div>
+
+                {/* Column headers */}
+                <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${colors.segBadge.split(' ')[0]}`}></span>
+                    <span className="text-xs font-bold text-muted-text uppercase tracking-wider">Segments</span>
                   </div>
-                  <div className="text-sm text-chart-green font-semibold">+12.5%</div>
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${colors.treatBadge.split(' ')[0]}`}></span>
+                    <span className="text-xs font-bold text-muted-text uppercase tracking-wider">Treatments</span>
+                  </div>
+                </div>
+
+                {/* Paired rows */}
+                <div className="space-y-3">
+                  {schema.segments.map((seg, idx) => {
+                    const treat = schema.treatments[idx];
+                    return (
+                      <div key={seg.id} className="grid grid-cols-2 gap-3 sm:gap-4">
+                        {/* Segment box */}
+                        <button
+                          onClick={() => openSegmentPopup(activeSchema, seg)}
+                          className={`flex items-center gap-2.5 p-3 sm:p-4 rounded-xl border-2 text-left transition-all duration-200 hover:shadow-md active:scale-95 group ${colors.segBg}`}
+                          type="button"
+                        >
+                          <div className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm ${colors.segBadge}`}>
+                            {seg.label}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-xs sm:text-sm font-bold ${colors.segText} truncate`}>{seg.label}</p>
+                            <p className="text-[10px] sm:text-xs text-muted-text truncate">{seg.description}</p>
+                          </div>
+                          <ChevronRight className={`w-4 h-4 flex-shrink-0 ${colors.segText} opacity-0 group-hover:opacity-100 transition-opacity`} />
+                        </button>
+
+                        {/* Treatment box */}
+                        {treat ? (
+                          <button
+                            onClick={() => openTreatmentPopup(activeSchema, treat)}
+                            className={`flex items-center gap-2.5 p-3 sm:p-4 rounded-xl border-2 text-left transition-all duration-200 hover:shadow-md active:scale-95 group ${colors.treatBg}`}
+                            type="button"
+                          >
+                            <div className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm ${colors.treatBadge}`}>
+                              {treat.label}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-xs sm:text-sm font-bold ${colors.treatText} truncate`}>{treat.label}</p>
+                              <p className="text-[10px] sm:text-xs text-muted-text truncate">{treat.description}</p>
+                            </div>
+                            <ChevronRight className={`w-4 h-4 flex-shrink-0 ${colors.treatText} opacity-0 group-hover:opacity-100 transition-opacity`} />
+                          </button>
+                        ) : (
+                          <div className="rounded-xl border-2 border-dashed border-border-gray p-3 sm:p-4 flex items-center justify-center">
+                            <span className="text-xs text-muted-text italic">No treatment</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-            ))}
-          </div>
+            );
+          })()}
 
-          <div className="bg-card-bg rounded-2xl p-12 shadow-premium-md border border-border-gray text-center">
-            <div className="w-20 h-20 bg-gradient-light rounded-2xl flex items-center justify-center mx-auto mb-6 border border-border-gray">
-              <Zap className="w-10 h-10 text-secondary-text" strokeWidth={2} />
+          {/* ── Empty state (no schema selected) ───────────────── */}
+          {!activeSchema && (
+            <div className="bg-card-bg rounded-2xl p-10 sm:p-16 shadow-premium-md border border-border-gray text-center">
+              <div className="w-16 h-16 bg-gradient-light rounded-2xl flex items-center justify-center mx-auto mb-5 border border-border-gray">
+                <Users className="w-8 h-8 text-secondary-text" strokeWidth={2} />
+              </div>
+              <h2 className="text-lg sm:text-xl font-bold text-primary-text mb-2">
+                Choose a Segmentation Schema
+              </h2>
+              <p className="text-sm text-muted-text max-w-sm mx-auto">
+                Click one of the 4 schema buttons above (RFM, Loyalty, Behavior, or Life Cycle) to view the segments and their assigned treatments.
+              </p>
             </div>
-            <h2 className="text-2xl font-bold text-primary-text mb-3">Campaign Results</h2>
-            <p className="text-muted-text max-w-md mx-auto">
-              Configure your campaign settings in the sidebar and click "Launch Campaign" to start
-            </p>
-          </div>
+          )}
+
         </div>
       </div>
+
+      {/* Popups */}
+      {renderPopup()}
     </div>
   );
 };
