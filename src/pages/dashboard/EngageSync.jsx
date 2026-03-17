@@ -192,11 +192,11 @@ const EngageSync = () => {
           onClick={closePopup}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col"
+            className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-5 border-b border-gray-200 bg-gray-50 rounded-t-2xl flex-shrink-0">
+            <div className="flex items-center justify-between p-5 border-b border-gray-200 bg-gray-50 rounded-t-xl flex-shrink-0">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${colors.iconBg}`}>
                   <Users className={`w-5 h-5 ${colors.iconColor}`} strokeWidth={2} />
@@ -258,7 +258,7 @@ const EngageSync = () => {
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end rounded-b-2xl flex-shrink-0">
+            <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end rounded-b-xl flex-shrink-0">
               <button
                 onClick={closePopup}
                 className="px-5 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
@@ -279,11 +279,11 @@ const EngageSync = () => {
           onClick={closePopup}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-md"
+            className="bg-white rounded-xl shadow-2xl w-full max-w-md"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-5 border-b border-gray-200 bg-gray-50 rounded-t-2xl">
+            <div className="flex items-center justify-between p-5 border-b border-gray-200 bg-gray-50 rounded-t-xl">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${colors.iconBg}`}>
                   <Tag className={`w-5 h-5 ${colors.iconColor}`} strokeWidth={2} />
@@ -320,7 +320,7 @@ const EngageSync = () => {
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end rounded-b-2xl">
+            <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end rounded-b-xl">
               <button
                 onClick={closePopup}
                 className="px-5 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
@@ -361,7 +361,7 @@ const EngageSync = () => {
         <div className="p-4 sm:p-6 space-y-5">
 
           {/* ── Page Header ─────────────────────────────────────── */}
-          <div className="bg-card-bg rounded-2xl p-5 sm:p-6 shadow-premium-md border border-border-gray">
+          <div className="bg-card-bg rounded-lg p-5 sm:p-6 shadow-premium-md border border-border-gray">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
                 <h1 className="text-xl sm:text-2xl font-bold text-primary-text">Segmentation Schema</h1>
@@ -392,7 +392,7 @@ const EngageSync = () => {
           </div>
 
           {/* ── Schema Buttons ───────────────────────────────────── */}
-          <div className="bg-card-bg rounded-2xl p-4 sm:p-6 shadow-premium-md border border-border-gray">
+          <div className="bg-card-bg rounded-lg p-4 sm:p-6 shadow-premium-md border border-border-gray">
             <h2 className="text-sm font-bold text-muted-text uppercase tracking-wider mb-4">
               Select Segmentation Schema
             </h2>
@@ -405,7 +405,7 @@ const EngageSync = () => {
                   <button
                     key={key}
                     onClick={() => setActiveSchema(isActive ? null : key)}
-                    className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 font-bold transition-all duration-200 shadow-sm hover:shadow-md active:scale-95 ${
+                    className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 font-bold transition-all duration-200 shadow-sm hover:shadow-md active:scale-95 ${
                       isActive ? colors.active : colors.inactive
                     }`}
                     type="button"
@@ -428,7 +428,7 @@ const EngageSync = () => {
             const colors = COLOR_MAP[schema.color];
             const Icon = schema.icon;
             return (
-              <div className="bg-card-bg rounded-2xl p-4 sm:p-6 shadow-premium-md border border-border-gray">
+              <div className="bg-card-bg rounded-lg p-4 sm:p-6 shadow-premium-md border border-border-gray">
                 {/* Section header */}
                 <div className="flex items-center gap-3 mb-5">
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${colors.iconBg}`}>
@@ -505,8 +505,8 @@ const EngageSync = () => {
 
           {/* ── Empty state (no schema selected) ───────────────── */}
           {!activeSchema && (
-            <div className="bg-card-bg rounded-2xl p-10 sm:p-16 shadow-premium-md border border-border-gray text-center">
-              <div className="w-16 h-16 bg-gradient-light rounded-2xl flex items-center justify-center mx-auto mb-5 border border-border-gray">
+            <div className="bg-card-bg rounded-lg p-10 sm:p-16 shadow-premium-md border border-border-gray text-center">
+              <div className="w-16 h-16 bg-gradient-light rounded-xl flex items-center justify-center mx-auto mb-5 border border-border-gray">
                 <Users className="w-8 h-8 text-secondary-text" strokeWidth={2} />
               </div>
               <h2 className="text-lg sm:text-xl font-bold text-primary-text mb-2">
