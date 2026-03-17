@@ -416,9 +416,6 @@ const EngageSync = () => {
                       <Icon className={`w-5 h-5 ${isActive ? 'text-white' : colors.iconColor}`} strokeWidth={2} />
                     </div>
                     <span className="text-sm">{schema.label}</span>
-                    <span className={`text-[10px] font-normal ${isActive ? 'text-white/80' : 'text-muted-text'}`}>
-                      {schema.segments.length} segments
-                    </span>
                   </button>
                 );
               })}
