@@ -2006,7 +2006,7 @@ const MarketEdge = () => {
                                 prev.includes(lvl) ? prev.filter((x) => x !== lvl) : [...prev, lvl]
                               )
                             }
-                            className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-all ${active
+                            className={`px-2.5 py-1 rounded-lg text-[10px] sm:text-xs font-semibold border transition-all ${active
                               ? 'bg-gray-900 text-white border-gray-900'
                               : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400'
                               }`}
@@ -2036,7 +2036,7 @@ const MarketEdge = () => {
                                 prev.includes(ch) ? prev.filter((x) => x !== ch) : [...prev, ch]
                               )
                             }
-                            className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-all ${active
+                            className={`px-2.5 py-1 rounded-lg text-[10px] sm:text-xs font-semibold border transition-all ${active
                               ? 'bg-gray-900 text-white border-gray-900'
                               : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400'
                               }`}
