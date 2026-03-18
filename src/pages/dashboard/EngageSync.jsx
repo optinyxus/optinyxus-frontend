@@ -188,15 +188,15 @@ const EngageSync = () => {
     if (popup.type === 'segment') {
       return (
         <div
-          className="fixed inset-0 bg-black/60 z-50 flex justify-end"
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
           onClick={closePopup}
         >
           <div
-            className="bg-white shadow-2xl w-full sm:w-[50vw] h-full flex flex-col animate-slide-left"
+            className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-5 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+            <div className="flex items-center justify-between p-5 border-b border-gray-200 bg-gray-50 rounded-t-xl flex-shrink-0">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${colors.iconBg}`}>
                   <Users className={`w-5 h-5 ${colors.iconColor}`} strokeWidth={2} />
@@ -258,7 +258,7 @@ const EngageSync = () => {
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end flex-shrink-0">
+            <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end rounded-b-xl flex-shrink-0">
               <button
                 onClick={closePopup}
                 className="px-5 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
@@ -275,15 +275,15 @@ const EngageSync = () => {
       const actions = ['Action 1', 'Action 2', 'Action 3'];
       return (
         <div
-          className="fixed inset-0 bg-black/60 z-50 flex justify-end"
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
           onClick={closePopup}
         >
           <div
-            className="bg-white shadow-2xl w-full sm:w-[50vw] h-full flex flex-col animate-slide-left"
+            className="bg-white rounded-xl shadow-2xl w-full max-w-md"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-5 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+            <div className="flex items-center justify-between p-5 border-b border-gray-200 bg-gray-50 rounded-t-xl flex-shrink-0">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${colors.iconBg}`}>
                   <Tag className={`w-5 h-5 ${colors.iconColor}`} strokeWidth={2} />
@@ -320,7 +320,7 @@ const EngageSync = () => {
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end mt-auto flex-shrink-0">
+            <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end rounded-b-xl">
               <button
                 onClick={closePopup}
                 className="px-5 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
