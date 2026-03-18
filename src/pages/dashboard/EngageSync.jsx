@@ -363,11 +363,11 @@ const EngageSync = () => {
         <div className="p-4 sm:p-6 space-y-5">
 
           {/* ── Page Header ─────────────────────────────────────── */}
-          <div className="bg-card-bg rounded-lg p-5 sm:p-6 shadow-premium-md border border-border-gray">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-primary-text">Segmentation Schema</h1>
-                <p className="text-sm text-muted-text mt-1">
+          <div className="bg-card-bg rounded-lg p-3 sm:p-4 shadow-premium-md border border-border-gray">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                <h1 className="text-lg sm:text-xl font-bold text-primary-text">Segmentation Schema</h1>
+                <p className="text-xs sm:text-sm text-muted-text">
                   Select a segmentation model to view and manage customer segments and their treatments.
                 </p>
               </div>
