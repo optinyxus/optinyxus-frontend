@@ -188,15 +188,15 @@ const EngageSync = () => {
     if (popup.type === 'segment') {
       return (
         <div
-          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/60 z-50 flex justify-end"
           onClick={closePopup}
         >
           <div
-            className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col"
+            className="bg-white shadow-2xl w-full sm:w-[50vw] h-full flex flex-col animate-slide-left"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-5 border-b border-gray-200 bg-gray-50 rounded-t-xl flex-shrink-0">
+            <div className="flex items-center justify-between p-5 border-b border-gray-200 bg-gray-50 flex-shrink-0">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${colors.iconBg}`}>
                   <Users className={`w-5 h-5 ${colors.iconColor}`} strokeWidth={2} />
@@ -258,7 +258,7 @@ const EngageSync = () => {
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end rounded-b-xl flex-shrink-0">
+            <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end flex-shrink-0">
               <button
                 onClick={closePopup}
                 className="px-5 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
@@ -275,15 +275,15 @@ const EngageSync = () => {
       const actions = ['Action 1', 'Action 2', 'Action 3'];
       return (
         <div
-          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/60 z-50 flex justify-end"
           onClick={closePopup}
         >
           <div
-            className="bg-white rounded-xl shadow-2xl w-full max-w-md"
+            className="bg-white shadow-2xl w-full sm:w-[50vw] h-full flex flex-col animate-slide-left"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-5 border-b border-gray-200 bg-gray-50 rounded-t-xl">
+            <div className="flex items-center justify-between p-5 border-b border-gray-200 bg-gray-50 flex-shrink-0">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${colors.iconBg}`}>
                   <Tag className={`w-5 h-5 ${colors.iconColor}`} strokeWidth={2} />
@@ -320,7 +320,7 @@ const EngageSync = () => {
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end rounded-b-xl">
+            <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end mt-auto flex-shrink-0">
               <button
                 onClick={closePopup}
                 className="px-5 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
@@ -351,6 +351,8 @@ const EngageSync = () => {
         onCltvChange={setCltvValue}
         elasticityValue={elasticityValue}
         onElasticityChange={setElasticityValue}
+        activeSchema={activeSchema}
+        onSchemaChange={setActiveSchema}
       />
 
       {/* Navbar */}
@@ -391,44 +393,13 @@ const EngageSync = () => {
             </div>
           </div>
 
-          {/* ── Schema Buttons ───────────────────────────────────── */}
-          <div className="bg-card-bg rounded-lg p-4 sm:p-6 shadow-premium-md border border-border-gray">
-            <h2 className="text-sm font-bold text-muted-text uppercase tracking-wider mb-4">
-              Select Segmentation Schema
-            </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {Object.entries(SCHEMA_DATA).map(([key, schema]) => {
-                const colors = COLOR_MAP[schema.color];
-                const isActive = activeSchema === key;
-                const Icon = schema.icon;
-                return (
-                  <button
-                    key={key}
-                    onClick={() => setActiveSchema(isActive ? null : key)}
-                    className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 font-bold transition-all duration-200 shadow-sm hover:shadow-md active:scale-95 ${
-                      isActive ? colors.active : colors.inactive
-                    }`}
-                    type="button"
-                  >
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
-                      isActive ? 'bg-white/20' : colors.iconBg
-                    }`}>
-                      <Icon className={`w-5 h-5 ${isActive ? 'text-white' : colors.iconColor}`} strokeWidth={2} />
-                    </div>
-                    <span className="text-sm">{schema.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
           {/* ── Segment + Treatment Boxes ────────────────────────── */}
           {activeSchema && (() => {
             const schema = SCHEMA_DATA[activeSchema];
             const colors = COLOR_MAP[schema.color];
             const Icon = schema.icon;
             return (
-              <div className="bg-card-bg rounded-lg p-4 sm:p-6 shadow-premium-md border border-border-gray">
+              <div className="bg-card-bg rounded-lg p-4 sm:p-6 shadow-premium-md border border-border-gray w-full lg:w-1/2">
                 {/* Section header */}
                 <div className="flex items-center gap-3 mb-5">
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${colors.iconBg}`}>
@@ -461,38 +432,38 @@ const EngageSync = () => {
                         {/* Segment box */}
                         <button
                           onClick={() => openSegmentPopup(activeSchema, seg)}
-                          className={`flex items-center gap-2.5 p-3 sm:p-4 rounded-xl border-2 text-left transition-all duration-200 hover:shadow-md active:scale-95 group ${colors.segBg}`}
+                          className={`flex items-center gap-2.5 p-2.5 sm:p-3 rounded-lg border-2 text-left transition-all duration-200 hover:shadow-md active:scale-95 group ${colors.segBg}`}
                           type="button"
                         >
-                          <div className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm ${colors.segBadge}`}>
+                          <div className={`flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center font-bold text-xs ${colors.segBadge}`}>
                             {seg.label}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className={`text-xs sm:text-sm font-bold ${colors.segText} truncate`}>{seg.label}</p>
-                            <p className="text-[10px] sm:text-xs text-muted-text truncate">{seg.description}</p>
+                            <p className={`text-[11px] sm:text-xs font-bold ${colors.segText} truncate`}>{seg.label}</p>
+                            <p className="text-[10px] text-muted-text truncate">{seg.description}</p>
                           </div>
-                          <ChevronRight className={`w-4 h-4 flex-shrink-0 ${colors.segText} opacity-0 group-hover:opacity-100 transition-opacity`} />
+                          <ChevronRight className={`w-3.5 h-3.5 flex-shrink-0 ${colors.segText} opacity-0 group-hover:opacity-100 transition-opacity`} />
                         </button>
 
                         {/* Treatment box */}
                         {treat ? (
                           <button
                             onClick={() => openTreatmentPopup(activeSchema, treat)}
-                            className={`flex items-center gap-2.5 p-3 sm:p-4 rounded-xl border-2 text-left transition-all duration-200 hover:shadow-md active:scale-95 group ${colors.treatBg}`}
+                            className={`flex items-center gap-2.5 p-2.5 sm:p-3 rounded-lg border-2 text-left transition-all duration-200 hover:shadow-md active:scale-95 group ${colors.treatBg}`}
                             type="button"
                           >
-                            <div className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm ${colors.treatBadge}`}>
+                            <div className={`flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center font-bold text-xs ${colors.treatBadge}`}>
                               {treat.label}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className={`text-xs sm:text-sm font-bold ${colors.treatText} truncate`}>{treat.label}</p>
-                              <p className="text-[10px] sm:text-xs text-muted-text truncate">{treat.description}</p>
+                              <p className={`text-[11px] sm:text-xs font-bold ${colors.treatText} truncate`}>{treat.label}</p>
+                              <p className="text-[10px] text-muted-text truncate">{treat.description}</p>
                             </div>
-                            <ChevronRight className={`w-4 h-4 flex-shrink-0 ${colors.treatText} opacity-0 group-hover:opacity-100 transition-opacity`} />
+                            <ChevronRight className={`w-3.5 h-3.5 flex-shrink-0 ${colors.treatText} opacity-0 group-hover:opacity-100 transition-opacity`} />
                           </button>
                         ) : (
-                          <div className="rounded-xl border-2 border-dashed border-border-gray p-3 sm:p-4 flex items-center justify-center">
-                            <span className="text-xs text-muted-text italic">No treatment</span>
+                          <div className="rounded-lg border-2 border-dashed border-border-gray p-2.5 sm:p-3 flex items-center justify-center">
+                            <span className="text-[10px] text-muted-text italic">No treatment</span>
                           </div>
                         )}
                       </div>
@@ -505,7 +476,7 @@ const EngageSync = () => {
 
           {/* ── Empty state (no schema selected) ───────────────── */}
           {!activeSchema && (
-            <div className="bg-card-bg rounded-lg p-10 sm:p-16 shadow-premium-md border border-border-gray text-center">
+            <div className="bg-card-bg rounded-lg p-10 sm:p-16 shadow-premium-md border border-border-gray text-center w-full lg:w-1/2">
               <div className="w-16 h-16 bg-gradient-light rounded-xl flex items-center justify-center mx-auto mb-5 border border-border-gray">
                 <Users className="w-8 h-8 text-secondary-text" strokeWidth={2} />
               </div>
@@ -513,7 +484,7 @@ const EngageSync = () => {
                 Choose a Segmentation Schema
               </h2>
               <p className="text-sm text-muted-text max-w-sm mx-auto">
-                Click one of the 4 schema buttons above (RFM, Loyalty, Behavior, or Life Cycle) to view the segments and their assigned treatments.
+                Select a schema from the left sidebar to view the segments and their assigned treatments.
               </p>
             </div>
           )}

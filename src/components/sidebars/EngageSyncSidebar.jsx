@@ -8,8 +8,14 @@ import {
   RotateCcw,
   Users,
   Loader2,
-  Filter
+  Filter,
+  Activity,
+  Heart,
+  Zap,
+  RefreshCcw,
+  Target
 } from 'lucide-react';
+
 import { useNavigate } from 'react-router-dom';
 
 const EngageSyncSidebar = ({
@@ -23,6 +29,8 @@ const EngageSyncSidebar = ({
   onCltvChange,
   elasticityValue,
   onElasticityChange,
+  activeSchema,
+  onSchemaChange,
 }) => {
   const navigate = useNavigate();
   const [isDragging, setIsDragging] = useState(false);
@@ -30,6 +38,12 @@ const EngageSyncSidebar = ({
 
   const cltvOptions = ['All', 'High', 'Medium', 'Low'];
   const elasticityOptions = ['All', 'Elastic', 'Inelastic', 'Unit Elastic'];
+  const schemaOptions = [
+    { id: 'rfm', label: 'RFM', icon: Activity, disabled: false },
+    { id: 'loyalty', label: 'Loyalty', icon: Heart, disabled: false },
+    { id: 'behavior', label: 'Behavior', icon: Zap, disabled: false },
+    { id: 'lifecycle', label: 'Life Cycle', icon: RefreshCcw, disabled: false },
+  ];
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -230,6 +244,46 @@ const EngageSyncSidebar = ({
                   ))}
                 </select>
               </div>
+            </div>
+          </div>
+
+          {/* Schema Selection */}
+          <div className="p-4 border-b border-border-gray">
+            <div className="flex items-center gap-2 mb-3">
+              <Target className="w-4 h-4 text-secondary-text" strokeWidth={2} />
+              <h3 className="text-lg font-bold text-primary-text">Segmentation Schema</h3>
+            </div>
+
+            <div className="space-y-2">
+              {schemaOptions.map((option) => {
+                const isActive = activeSchema === option.id;
+                const isDisabled = option.disabled;
+                const Icon = option.icon;
+
+                return (
+                  <button
+                    key={option.id}
+                    onClick={() => !isDisabled && onSchemaChange(option.id)}
+                    disabled={isDisabled}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 border-2 ${
+                      isDisabled
+                        ? 'border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60'
+                        : isActive
+                        ? 'border-primary-text bg-primary-text text-white shadow-premium-lg cursor-pointer'
+                        : 'border-border-gray bg-white text-secondary-text hover:border-secondary-text hover:shadow-premium cursor-pointer'
+                    }`}
+                    type="button"
+                  >
+                    <Icon
+                      className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-white' : 'text-secondary-text'}`}
+                      strokeWidth={2}
+                    />
+                    <span className="text-sm font-semibold text-left flex-1">
+                      {option.label}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
