@@ -34,6 +34,10 @@ const EngageSyncSidebar = ({
   onSchemaChange,
   multiSelectMode,
   onMultiSelectChange,
+  matrixMode,
+  onMatrixModeChange,
+  matrixSchemaOrder,
+  onMatrixSchemaToggle,
 }) => {
   const navigate = useNavigate();
   const [isDragging, setIsDragging] = useState(false);
@@ -257,62 +261,140 @@ const EngageSyncSidebar = ({
               <Target className="w-4 h-4 text-secondary-text" strokeWidth={2} />
               <h3 className="text-lg font-bold text-primary-text">Segmentation Schema</h3>
             </div>
-            {/* Multi-Select toggle below heading */}
-            <div className="flex items-center gap-1.5 select-none mb-3">
-              <LayoutGrid className="w-3.5 h-3.5 text-secondary-text flex-shrink-0" />
-              <span className="text-[10px] font-semibold text-secondary-text whitespace-nowrap">Multi-Select</span>
+
+            {/* Toggle bar: Multi-Select | divider | 2x2 Matrix */}
+            <div className="flex items-center gap-0 select-none mb-3 rounded-lg border border-border-gray overflow-hidden bg-gradient-card">
+              {/* Multi-Select toggle */}
               <button
                 type="button"
                 role="switch"
                 aria-checked={multiSelectMode}
                 onClick={(e) => { e.stopPropagation(); onMultiSelectChange(!multiSelectMode); }}
-                className={`relative inline-flex items-center rounded-full transition-colors duration-300 focus:outline-none flex-shrink-0 cursor-pointer ${
-                  multiSelectMode ? 'bg-indigo-600' : 'bg-gray-300'
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 transition-all duration-200 cursor-pointer ${
+                  multiSelectMode ? 'bg-indigo-50' : 'hover:bg-hover-gray'
                 }`}
-                style={{ minWidth: 32, width: 32, height: 18 }}
               >
+                <LayoutGrid className={`w-3 h-3 flex-shrink-0 ${multiSelectMode ? 'text-indigo-600' : 'text-secondary-text'}`} />
+                <span className={`text-[10px] font-semibold whitespace-nowrap ${multiSelectMode ? 'text-indigo-700' : 'text-secondary-text'}`}>Multi-Select</span>
                 <span
-                  className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform duration-300 ${
-                    multiSelectMode ? 'translate-x-[17px]' : 'translate-x-[2px]'
+                  className={`relative inline-flex items-center rounded-full transition-colors duration-300 focus:outline-none flex-shrink-0 ${
+                    multiSelectMode ? 'bg-indigo-600' : 'bg-gray-300'
                   }`}
-                />
+                  style={{ minWidth: 26, width: 26, height: 15 }}
+                >
+                  <span
+                    className={`inline-block h-2.5 w-2.5 transform rounded-full bg-white shadow transition-transform duration-300 ${
+                      multiSelectMode ? 'translate-x-[13px]' : 'translate-x-[2px]'
+                    }`}
+                  />
+                </span>
+              </button>
+
+              {/* Vertical divider */}
+              <div className="w-px self-stretch bg-border-gray flex-shrink-0" />
+
+              {/* 2x2 Matrix toggle */}
+              <button
+                type="button"
+                role="switch"
+                aria-checked={matrixMode}
+                onClick={(e) => { e.stopPropagation(); onMatrixModeChange(!matrixMode); }}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 transition-all duration-200 cursor-pointer ${
+                  matrixMode ? 'bg-violet-50' : 'hover:bg-hover-gray'
+                }`}
+              >
+                <span className={`text-[10px] font-semibold whitespace-nowrap ${matrixMode ? 'text-violet-700' : 'text-secondary-text'}`}>2×2 Matrix</span>
+                <span
+                  className={`relative inline-flex items-center rounded-full transition-colors duration-300 focus:outline-none flex-shrink-0 ${
+                    matrixMode ? 'bg-violet-600' : 'bg-gray-300'
+                  }`}
+                  style={{ minWidth: 26, width: 26, height: 15 }}
+                >
+                  <span
+                    className={`inline-block h-2.5 w-2.5 transform rounded-full bg-white shadow transition-transform duration-300 ${
+                      matrixMode ? 'translate-x-[13px]' : 'translate-x-[2px]'
+                    }`}
+                  />
+                </span>
               </button>
             </div>
 
             <div className="space-y-2">
               {schemaOptions.map((option) => {
-                const isActive = multiSelectMode || activeSchema === option.id;
-                const isDisabled = option.disabled || multiSelectMode;
+                const matrixOrderIdx = matrixSchemaOrder ? matrixSchemaOrder.indexOf(option.id) : -1;
+                const isInMatrix = matrixOrderIdx !== -1;
+                const isActive = matrixMode
+                  ? isInMatrix
+                  : (multiSelectMode || activeSchema === option.id);
+                const isDisabled = option.disabled || (multiSelectMode && !matrixMode);
                 const Icon = option.icon;
+                const orderLabel = ['①', '②', '③', '④'];
 
                 return (
                   <button
                     key={option.id}
-                    onClick={() => !multiSelectMode && !option.disabled && onSchemaChange(option.id)}
-                    disabled={isDisabled}
-                    className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 border-2 ${
+                    onClick={() => {
+                      if (option.disabled) return;
+                      if (matrixMode) {
+                        onMatrixSchemaToggle(option.id);
+                      } else if (!multiSelectMode) {
+                        onSchemaChange(option.id);
+                      }
+                    }}
+                    disabled={option.disabled || (multiSelectMode && !matrixMode)}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 border-2 relative ${
                       option.disabled
                         ? 'border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60'
-                        : isActive
-                        ? `${option.activeColor} shadow-premium-lg cursor-pointer`
-                        : 'border-border-gray bg-white text-secondary-text hover:border-secondary-text hover:shadow-premium cursor-pointer'
+                        : matrixMode
+                          ? isInMatrix
+                            ? 'border-violet-400 bg-violet-50 text-violet-700 shadow-premium-lg cursor-pointer'
+                            : 'border-border-gray bg-white text-secondary-text hover:border-violet-300 hover:shadow-premium cursor-pointer'
+                          : isActive
+                          ? `${option.activeColor} shadow-premium-lg cursor-pointer`
+                          : 'border-border-gray bg-white text-secondary-text hover:border-secondary-text hover:shadow-premium cursor-pointer'
                     }`}
                     type="button"
                   >
                     <Icon
-                      className={`w-5 h-5 flex-shrink-0 ${isActive && !option.disabled ? option.iconColor : 'text-secondary-text'}`}
+                      className={`w-5 h-5 flex-shrink-0 ${
+                        matrixMode
+                          ? isInMatrix ? 'text-violet-600' : 'text-secondary-text'
+                          : isActive && !option.disabled ? option.iconColor : 'text-secondary-text'
+                      }`}
                       strokeWidth={2}
                     />
                     <span className="text-sm font-semibold text-left flex-1">
                       {option.label}
                     </span>
-                    {multiSelectMode && !option.disabled && (
+                    {/* Matrix mode: show order badge */}
+                    {matrixMode && isInMatrix && (
+                      <span className="text-base font-bold text-violet-600 flex-shrink-0">
+                        {orderLabel[matrixOrderIdx]}
+                      </span>
+                    )}
+                    {/* Multi-select mode: dot indicator */}
+                    {multiSelectMode && !option.disabled && !matrixMode && (
                       <span className="w-2 h-2 rounded-full bg-white/80 flex-shrink-0" />
+                    )}
+                    {/* Matrix mode, not selected: show empty circle hint */}
+                    {matrixMode && !isInMatrix && !option.disabled && (
+                      <span className="w-4 h-4 rounded-full border-2 border-dashed border-violet-300 flex-shrink-0" />
                     )}
                   </button>
                 );
               })}
             </div>
+
+            {/* Matrix mode instruction */}
+            {matrixMode && (
+              <p className="text-[10px] text-muted-text mt-2 text-center">
+                {matrixSchemaOrder && matrixSchemaOrder.length === 0 && 'Select 2 schemas to build a matrix'}
+                {matrixSchemaOrder && matrixSchemaOrder.length === 1 && 'Select 1 more schema'}
+                {matrixSchemaOrder && matrixSchemaOrder.length === 2 && '✓ Matrix ready! Select 2 more for a second matrix.'}
+                {matrixSchemaOrder && matrixSchemaOrder.length === 3 && 'Select 1 more for a second matrix'}
+                {matrixSchemaOrder && matrixSchemaOrder.length === 4 && '✓ Double matrix ready!'}
+              </p>
+            )}
           </div>
 
         </div>
@@ -325,6 +407,8 @@ const EngageSyncSidebar = ({
               if (inputRef.current) inputRef.current.value = '';
               onSchemaChange(null);
               onMultiSelectChange(false);
+              onMatrixModeChange(false);
+              onMatrixSchemaToggle('__reset__');
             }}
             className="w-full flex items-center justify-center gap-2 px-3 py-1.5 bg-red-50/50 border border-red-300 text-red-600 rounded-lg hover:bg-red-100 hover:border-red-500 hover:text-red-700 transition-all duration-300 font-medium text-xs"
             type="button"

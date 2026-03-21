@@ -4,6 +4,183 @@ import Navbar from '../../components/common/Navbar';
 import EngageSyncSidebar from '../../components/sidebars/EngageSyncSidebar';
 import { X, Users, Zap, ChevronRight, Tag, Activity, RefreshCcw, Heart, LayoutGrid } from 'lucide-react';
 
+// ─── Segment arrays per schema (for 2x2 Matrix, same data as Multi-Select) ────
+const SCHEMA_SEGMENTS = {
+  rfm: [
+    { id: 'rfm_prime',  label: 'Prime',  score: 3, count: 3000 },
+    { id: 'rfm_active', label: 'Active', score: 2, count: 5000 },
+    { id: 'rfm_fading', label: 'Fading', score: 1, count: 2000 },
+  ],
+  loyalty: [
+    { id: 'lo_evan',   label: 'Evangelist',     score: 5, count: 2000 },
+    { id: 'lo_brand',  label: 'Brand Loyalist',  score: 3, count: 3000 },
+    { id: 'lo_trans',  label: 'Transactional',   score: 2, count: 2000 },
+    { id: 'lo_neut',   label: 'Neutral Customer', score: 1, count: 3000 },
+  ],
+  behavior: [
+    { id: 'bh_deal',  label: 'Deal Hunters',       score: 8,  count: 2500 },
+    { id: 'bh_prem',  label: 'Premium Seekers',     score: 21, count: 1000 },
+    { id: 'bh_var',   label: 'Variety Explorers',   score: 3,  count: 1500 },
+    { id: 'bh_quick', label: 'Quick Buyers',         score: 13, count: 2500 },
+    { id: 'bh_res',   label: 'Researchers',          score: 1,  count: 500  },
+    { id: 'bh_conv',  label: 'Convenience Seekers',  score: 5,  count: 1500 },
+    { id: 'bh_need',  label: 'Need Driven',          score: 2,  count: 500  },
+  ],
+  lifecycle: [
+    { id: 'lc_prosp', label: 'Prospect',      score: 2,  count: 1000 },
+    { id: 'lc_new',   label: 'New Customers', score: 5,  count: 500  },
+    { id: 'lc_grow',  label: 'Growing',       score: 8,  count: 2500 },
+    { id: 'lc_mat',   label: 'Mature',        score: 13, count: 3000 },
+    { id: 'lc_risk',  label: 'At-Risk',       score: 3,  count: 1000 },
+    { id: 'lc_dorm',  label: 'Dormant',       score: 1,  count: 2000 },
+  ],
+};
+
+// Row/column axis colours — match Multi-Select palette
+const AXIS_STYLE = {
+  rfm:       { rowBg: 'bg-indigo-50', rowText: 'text-indigo-800', rowCount: 'text-indigo-500', headerBg: 'bg-indigo-50 text-indigo-800',   headerCount: 'text-indigo-600',  colSpanBg: 'bg-indigo-50 text-indigo-800'  },
+  loyalty:   { rowBg: 'bg-rose-50',   rowText: 'text-rose-800',   rowCount: 'text-rose-500',   headerBg: 'bg-rose-50 text-rose-800',       headerCount: 'text-rose-600',    colSpanBg: 'bg-rose-50 text-rose-800'      },
+  behavior:  { rowBg: 'bg-amber-50',  rowText: 'text-amber-800',  rowCount: 'text-amber-500',  headerBg: 'bg-amber-50 text-amber-800',     headerCount: 'text-amber-600',   colSpanBg: 'bg-amber-50 text-amber-800'   },
+  lifecycle: { rowBg: 'bg-emerald-50',rowText: 'text-emerald-800',rowCount: 'text-emerald-500',headerBg: 'bg-emerald-50 text-emerald-800', headerCount: 'text-emerald-600', colSpanBg: 'bg-emerald-50 text-emerald-800'},
+};
+
+// ─── MatrixPanel ─────────────────────────────────────────────────────────────
+// Uses exact same getCellValue formula and segment data as Multi-Select.
+// Defined as a function expression so it can reference getCellValue defined later.
+const MatrixPanel = ({ ySchemaId, xSchemaId }) => {
+  // ySchemaId = first selected (rows / Y-axis)
+  // xSchemaId = second selected (columns / X-axis)
+  const yLabel    = ySchemaId === 'lifecycle' ? 'Life Cycle' : ySchemaId.charAt(0).toUpperCase() + ySchemaId.slice(1);
+  const xLabel    = xSchemaId === 'lifecycle' ? 'Life Cycle' : xSchemaId.charAt(0).toUpperCase() + xSchemaId.slice(1);
+  const ySegs     = SCHEMA_SEGMENTS[ySchemaId];
+  const xSegs     = SCHEMA_SEGMENTS[xSchemaId];
+  const yStyle    = AXIS_STYLE[ySchemaId];
+  const xStyle    = AXIS_STYLE[xSchemaId];
+
+  // Reuse exact getCellValue(rfm, loyalty, behaviour, lifecycle) — we call with
+  // the row segment score on its own axis and 1 for axes not in this matrix.
+  const cell = (y, x) => {
+    const scores = { rfm: 1, loyalty: 1, behavior: 1, lifecycle: 1 };
+    scores[ySchemaId] = y.score;
+    scores[xSchemaId] = x.score;
+    // getCellValue defined later in file — safe because MatrixPanel is called at render time
+    return getCellValue(scores.rfm, scores.loyalty, scores.behavior, scores.lifecycle);
+  };
+
+  return (
+    <div className="bg-card-bg rounded-lg shadow-premium-md border border-border-gray w-full">
+      {/* Card header - same style as Multi-Select's outer card */}
+      <div className="p-4 sm:p-5 space-y-4">
+
+        {/* Axis indicator pills */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold ${yStyle.rowBg} border-current ${yStyle.rowText}`}>
+            Y-axis: {yLabel} Segments
+          </span>
+          <span className="text-xs text-muted-text">×</span>
+          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold ${xStyle.rowBg} border-current ${xStyle.rowText}`}>
+            X-axis: {xLabel} Segments
+          </span>
+        </div>
+
+        {/* Matrix Table — full width, same structure as Multi-Select */}
+        <div className="overflow-x-auto rounded-lg border border-gray-300">
+          <table className="w-full text-xs border-collapse" style={{ minWidth: 500 }}>
+            <thead>
+              {/* X-axis (columns) group header */}
+              <tr>
+                <td className="border border-gray-300 bg-gray-50 p-2" rowSpan={2} />
+                <td className="border border-gray-300 bg-gray-50 p-2" rowSpan={2} />
+                <td
+                  colSpan={xSegs.length + 1}
+                  className={`border border-gray-300 font-bold text-center py-2 px-3 tracking-wide ${xStyle.headerBg}`}
+                >
+                  {xLabel} Segments <span className="font-normal text-[10px] opacity-60">(X-axis / Columns)</span>
+                </td>
+              </tr>
+              <tr>
+                {xSegs.map(x => (
+                  <th
+                    key={x.id}
+                    className={`border border-gray-300 font-semibold py-2 px-2 text-center whitespace-nowrap ${xStyle.headerBg}`}
+                  >
+                    {x.label}<br />
+                    <span className={`text-[9px] font-normal ${xStyle.headerCount}`}>({x.count.toLocaleString()})</span>
+                  </th>
+                ))}
+                <th className="border border-gray-300 bg-gray-100 text-gray-700 font-bold py-2 px-3 text-center">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ySegs.map((y, yIdx) => {
+                const rowTotal = xSegs.reduce((sum, x) => sum + cell(y, x), 0);
+                return (
+                  <tr key={y.id}>
+                    {/* Y-axis (rows) group header — spans all data rows */}
+                    {yIdx === 0 && (
+                      <td
+                        rowSpan={ySegs.length + 1}
+                        className={`border border-gray-300 font-bold text-center ${yStyle.colSpanBg}`}
+                        style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', minWidth: 28, padding: '8px 4px' }}
+                      >
+                        {yLabel} Segments <span className="font-normal text-[9px] opacity-60">(Y)</span>
+                      </td>
+                    )}
+                    {/* Row label */}
+                    <td className={`border border-gray-300 font-semibold py-2 px-3 whitespace-nowrap ${yStyle.rowBg} ${yStyle.rowText}`}>
+                      {y.label}<br />
+                      <span className={`text-[9px] font-normal ${yStyle.rowCount}`}>({y.count.toLocaleString()})</span>
+                    </td>
+                    {/* Data cells */}
+                    {xSegs.map(x => {
+                      const val = cell(y, x);
+                      return (
+                        <td
+                          key={x.id}
+                          className="border border-gray-300 text-center py-2 px-2 font-medium transition-colors"
+                          style={{
+                            backgroundColor: val > 0
+                              ? `rgba(99,102,241,${0.05 + (val / 1000) * 0.35})`
+                              : '#f9fafb',
+                            color: val > 600 ? '#3730a3' : '#374151',
+                          }}
+                        >
+                          {val.toLocaleString()}
+                        </td>
+                      );
+                    })}
+                    {/* Row total */}
+                    <td className="border border-gray-300 bg-gray-50 text-center font-bold text-gray-800 py-2 px-3">
+                      {rowTotal.toLocaleString()}
+                    </td>
+                  </tr>
+                );
+              })}
+              {/* Column totals row */}
+              <tr>
+                <td className="border border-gray-300 bg-gray-100 text-gray-700 font-bold text-center py-2 px-3">Total</td>
+                {xSegs.map(x => {
+                  const colTotal = ySegs.reduce((sum, y) => sum + cell(y, x), 0);
+                  return (
+                    <td key={x.id} className="border border-gray-300 bg-gray-100 text-center font-bold text-gray-800 py-2 px-2">
+                      {colTotal.toLocaleString()}
+                    </td>
+                  );
+                })}
+                <td className="border border-gray-300 bg-gray-200 text-center font-bold text-gray-900 py-2 px-3">
+                  {ySegs.reduce((sum, y) => sum + xSegs.reduce((s2, x) => s2 + cell(y, x), 0), 0).toLocaleString()}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  );
+};
+
+
 // ─── Multi-Select Matrix Data ───────────────────────────────────────────────
 const RFM_SEGMENTS = [
   { id: 'rfm_prime',  label: 'Prime',  score: 3, count: 3000 },
@@ -201,7 +378,32 @@ const EngageSync = () => {
   const [selectedRfm, setSelectedRfm] = useState(RFM_SEGMENTS[0]);
   const [selectedLifecycle, setSelectedLifecycle] = useState(LIFECYCLE_SEGMENTS[0]);
 
+  // ── 2x2 Matrix Mode state ──────────────────────────────────────────────────
+  const [matrixMode, setMatrixMode] = useState(false);
+  const [matrixSchemaOrder, setMatrixSchemaOrder] = useState([]); // ordered array of schema ids
+
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+
+  // Mutual-exclusion: turning on multi-select turns off matrix mode, and vice-versa
+  const handleMultiSelectChange = (val) => {
+    setMultiSelectMode(val);
+    if (val) { setMatrixMode(false); setMatrixSchemaOrder([]); }
+  };
+
+  const handleMatrixModeChange = (val) => {
+    setMatrixMode(val);
+    if (val) { setMultiSelectMode(false); }
+    if (!val) { setMatrixSchemaOrder([]); }
+  };
+
+  const handleMatrixSchemaToggle = (id) => {
+    if (id === '__reset__') { setMatrixSchemaOrder([]); return; }
+    setMatrixSchemaOrder(prev => {
+      if (prev.includes(id)) return prev.filter(s => s !== id);
+      if (prev.length >= 4) return prev;
+      return [...prev, id];
+    });
+  };
 
   const handleRunAnalysis = () => {
     if (!uploadedFile || isRunning) return;
@@ -395,7 +597,11 @@ const EngageSync = () => {
         activeSchema={activeSchema}
         onSchemaChange={setActiveSchema}
         multiSelectMode={multiSelectMode}
-        onMultiSelectChange={setMultiSelectMode}
+        onMultiSelectChange={handleMultiSelectChange}
+        matrixMode={matrixMode}
+        onMatrixModeChange={handleMatrixModeChange}
+        matrixSchemaOrder={matrixSchemaOrder}
+        onMatrixSchemaToggle={handleMatrixSchemaToggle}
       />
 
       {/* Navbar */}
@@ -437,6 +643,14 @@ const EngageSync = () => {
                 {multiSelectMode && (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold">
                     Multi-Select ON
+                  </span>
+                )}
+                {matrixMode && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-50 border border-violet-200 text-violet-700 text-xs font-semibold">
+                    2×2 Matrix ON
+                    {matrixSchemaOrder.length > 0 && (
+                      <span className="ml-1 font-normal opacity-80">({matrixSchemaOrder.length}/4 selected)</span>
+                    )}
                   </span>
                 )}
               </div>
@@ -525,7 +739,7 @@ const EngageSync = () => {
           })()}
 
           {/* ── Empty state (no schema selected, single-select mode only) ─── */}
-          {!activeSchema && !multiSelectMode && (
+          {!activeSchema && !multiSelectMode && !matrixMode && (
             <div className="bg-card-bg rounded-lg p-10 sm:p-16 shadow-premium-md border border-border-gray text-center w-full lg:w-1/2">
               <div className="w-16 h-16 bg-gradient-light rounded-xl flex items-center justify-center mx-auto mb-5 border border-border-gray">
                 <Users className="w-8 h-8 text-secondary-text" strokeWidth={2} />
@@ -692,6 +906,77 @@ const EngageSync = () => {
               </div>
             </div>
           )}
+
+          {/* ── 2x2 Matrix Mode ─────────────────────────────────── */}
+          {matrixMode && (() => {
+            const count = matrixSchemaOrder.length;
+            const schemaLabel = (id) => id === 'lifecycle' ? 'Life Cycle' : id ? id.charAt(0).toUpperCase() + id.slice(1) : '';
+            return (
+              <div className="space-y-6">
+
+                {/* 0 selected — welcome prompt */}
+                {count === 0 && (
+                  <div className="bg-card-bg rounded-lg p-12 shadow-premium-md border border-border-gray text-center">
+                    <div className="w-16 h-16 bg-violet-50 border border-violet-200 rounded-xl flex items-center justify-center mx-auto mb-4">
+                      <LayoutGrid className="w-8 h-8 text-violet-400" strokeWidth={1.5} />
+                    </div>
+                    <h2 className="text-lg font-bold text-primary-text mb-1">2×2 Matrix Mode Active</h2>
+                    <p className="text-sm text-muted-text">Select <span className="font-semibold text-violet-600">2 schemas</span> from the sidebar to build your first matrix.</p>
+                    <p className="text-xs text-muted-text mt-1">Select all 4 for a double-matrix dashboard.</p>
+                  </div>
+                )}
+
+                {/* 1 selected — waiting for second */}
+                {count === 1 && (
+                  <div className="bg-card-bg rounded-lg p-10 shadow-premium-md border border-violet-200 text-center">
+                    <div className="w-12 h-12 bg-violet-100 rounded-xl flex items-center justify-center mx-auto mb-3">
+                      <span className="text-2xl">①</span>
+                    </div>
+                    <p className="text-sm font-semibold text-violet-700 mb-1">
+                      {schemaLabel(matrixSchemaOrder[0])} selected as Y-axis (rows)
+                    </p>
+                    <p className="text-xs text-muted-text">Select <span className="font-semibold text-violet-600">1 more schema</span> from the sidebar to set the X-axis (columns).</p>
+                  </div>
+                )}
+
+                {/* 2 or more — show first matrix */}
+                {count >= 2 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1 h-5 bg-indigo-500 rounded-full" />
+                      <p className="text-xs font-bold text-muted-text uppercase tracking-wider">
+                        Matrix 1 — {schemaLabel(matrixSchemaOrder[0])} vs {schemaLabel(matrixSchemaOrder[1])}
+                      </p>
+                    </div>
+                    <MatrixPanel ySchemaId={matrixSchemaOrder[0]} xSchemaId={matrixSchemaOrder[1]} />
+                  </div>
+                )}
+
+                {/* 3 selected — waiting for fourth */}
+                {count === 3 && (
+                  <div className="bg-violet-50 border border-violet-200 rounded-lg p-4 text-center">
+                    <p className="text-xs font-semibold text-violet-700">
+                      {schemaLabel(matrixSchemaOrder[2])} selected — select <span className="font-semibold">1 more</span> schema to build a second matrix.
+                    </p>
+                  </div>
+                )}
+
+                {/* 4 selected — show second matrix */}
+                {count === 4 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1 h-5 bg-violet-500 rounded-full" />
+                      <p className="text-xs font-bold text-muted-text uppercase tracking-wider">
+                        Matrix 2 — {schemaLabel(matrixSchemaOrder[2])} vs {schemaLabel(matrixSchemaOrder[3])}
+                      </p>
+                    </div>
+                    <MatrixPanel ySchemaId={matrixSchemaOrder[2]} xSchemaId={matrixSchemaOrder[3]} />
+                  </div>
+                )}
+
+              </div>
+            );
+          })()}
 
         </div>
       </div>
