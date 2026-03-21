@@ -338,37 +338,34 @@ const EngageSyncSidebar = ({
                       if (matrixMode) {
                         onMatrixSchemaToggle(option.id);
                       } else if (!multiSelectMode) {
-                        onSchemaChange(option.id);
+                        // Toggle: click same active schema again to deselect
+                        onSchemaChange(activeSchema === option.id ? null : option.id);
                       }
                     }}
                     disabled={option.disabled || (multiSelectMode && !matrixMode)}
                     className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 border-2 relative ${
                       option.disabled
                         ? 'border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60'
-                        : matrixMode
-                          ? isInMatrix
-                            ? 'border-violet-400 bg-violet-50 text-violet-700 shadow-premium-lg cursor-pointer'
-                            : 'border-border-gray bg-white text-secondary-text hover:border-violet-300 hover:shadow-premium cursor-pointer'
-                          : isActive
+                        : isActive
                           ? `${option.activeColor} shadow-premium-lg cursor-pointer`
-                          : 'border-border-gray bg-white text-secondary-text hover:border-secondary-text hover:shadow-premium cursor-pointer'
+                          : matrixMode
+                            ? 'border-border-gray bg-white text-secondary-text hover:border-secondary-text hover:shadow-premium cursor-pointer'
+                            : 'border-border-gray bg-white text-secondary-text hover:border-secondary-text hover:shadow-premium cursor-pointer'
                     }`}
                     type="button"
                   >
                     <Icon
                       className={`w-5 h-5 flex-shrink-0 ${
-                        matrixMode
-                          ? isInMatrix ? 'text-violet-600' : 'text-secondary-text'
-                          : isActive && !option.disabled ? option.iconColor : 'text-secondary-text'
+                        isActive && !option.disabled ? option.iconColor : 'text-secondary-text'
                       }`}
                       strokeWidth={2}
                     />
                     <span className="text-sm font-semibold text-left flex-1">
                       {option.label}
                     </span>
-                    {/* Matrix mode: show order badge */}
+                    {/* Matrix mode: show order badge in schema's own icon color */}
                     {matrixMode && isInMatrix && (
-                      <span className="text-base font-bold text-violet-600 flex-shrink-0">
+                      <span className={`text-base font-bold flex-shrink-0 ${option.iconColor}`}>
                         {orderLabel[matrixOrderIdx]}
                       </span>
                     )}
@@ -376,9 +373,9 @@ const EngageSyncSidebar = ({
                     {multiSelectMode && !option.disabled && !matrixMode && (
                       <span className="w-2 h-2 rounded-full bg-white/80 flex-shrink-0" />
                     )}
-                    {/* Matrix mode, not selected: show empty circle hint */}
+                    {/* Matrix mode, not selected: show empty circle hint in schema's own color border */}
                     {matrixMode && !isInMatrix && !option.disabled && (
-                      <span className="w-4 h-4 rounded-full border-2 border-dashed border-violet-300 flex-shrink-0" />
+                      <span className="w-4 h-4 rounded-full border-2 border-dashed border-gray-300 flex-shrink-0" />
                     )}
                   </button>
                 );
