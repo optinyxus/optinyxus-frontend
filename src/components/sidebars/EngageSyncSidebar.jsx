@@ -315,16 +315,6 @@ const EngageSyncSidebar = ({
             </div>
           </div>
 
-          {/* Module Info */}
-          <div className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Users className="w-4 h-4 text-secondary-text" strokeWidth={2} />
-              <h3 className="text-sm font-bold text-primary-text">EngageSync</h3>
-            </div>
-            <p className="text-xs text-muted-text leading-relaxed">
-              Segment your customers using RFM, Loyalty, Behavior, or Life Cycle schemas, then assign targeted treatments to each segment.
-            </p>
-          </div>
         </div>
 
         {/* Reset footer */}
@@ -333,6 +323,8 @@ const EngageSyncSidebar = ({
             onClick={() => {
               onFileUpload(null);
               if (inputRef.current) inputRef.current.value = '';
+              onSchemaChange(null);
+              onMultiSelectChange(false);
             }}
             className="w-full flex items-center justify-center gap-2 px-3 py-1.5 bg-red-50/50 border border-red-300 text-red-600 rounded-lg hover:bg-red-100 hover:border-red-500 hover:text-red-700 transition-all duration-300 font-medium text-xs"
             type="button"
