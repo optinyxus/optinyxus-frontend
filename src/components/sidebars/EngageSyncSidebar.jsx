@@ -13,7 +13,8 @@ import {
   Heart,
   Zap,
   RefreshCcw,
-  Target
+  Target,
+  LayoutGrid
 } from 'lucide-react';
 
 import { useNavigate } from 'react-router-dom';
@@ -31,6 +32,8 @@ const EngageSyncSidebar = ({
   onElasticityChange,
   activeSchema,
   onSchemaChange,
+  multiSelectMode,
+  onMultiSelectChange,
 }) => {
   const navigate = useNavigate();
   const [isDragging, setIsDragging] = useState(false);
@@ -39,10 +42,10 @@ const EngageSyncSidebar = ({
   const cltvOptions = ['All', 'High', 'Medium', 'Low'];
   const elasticityOptions = ['All', 'Elastic', 'Inelastic', 'Unit Elastic'];
   const schemaOptions = [
-    { id: 'rfm', label: 'RFM', icon: Activity, disabled: false },
-    { id: 'loyalty', label: 'Loyalty', icon: Heart, disabled: false },
-    { id: 'behavior', label: 'Behavior', icon: Zap, disabled: false },
-    { id: 'lifecycle', label: 'Life Cycle', icon: RefreshCcw, disabled: false },
+    { id: 'rfm',       label: 'RFM',        icon: Activity,   disabled: false, activeColor: 'border-indigo-400 bg-indigo-50 text-indigo-700',   iconColor: 'text-indigo-600' },
+    { id: 'loyalty',   label: 'Loyalty',    icon: Heart,      disabled: false, activeColor: 'border-rose-400 bg-rose-50 text-rose-700',         iconColor: 'text-rose-600'   },
+    { id: 'behavior',  label: 'Behavior',   icon: Zap,        disabled: false, activeColor: 'border-amber-400 bg-amber-50 text-amber-700',      iconColor: 'text-amber-600'  },
+    { id: 'lifecycle', label: 'Life Cycle', icon: RefreshCcw, disabled: false, activeColor: 'border-emerald-400 bg-emerald-50 text-emerald-700', iconColor: 'text-emerald-600'},
   ];
 
   const handleFileChange = (e) => {
@@ -249,38 +252,63 @@ const EngageSyncSidebar = ({
 
           {/* Schema Selection */}
           <div className="p-4 border-b border-border-gray">
-            <div className="flex items-center gap-2 mb-3">
+            {/* Heading */}
+            <div className="flex items-center gap-2 mb-2">
               <Target className="w-4 h-4 text-secondary-text" strokeWidth={2} />
               <h3 className="text-lg font-bold text-primary-text">Segmentation Schema</h3>
+            </div>
+            {/* Multi-Select toggle below heading */}
+            <div className="flex items-center gap-1.5 select-none mb-3">
+              <LayoutGrid className="w-3.5 h-3.5 text-secondary-text flex-shrink-0" />
+              <span className="text-[10px] font-semibold text-secondary-text whitespace-nowrap">Multi-Select</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={multiSelectMode}
+                onClick={(e) => { e.stopPropagation(); onMultiSelectChange(!multiSelectMode); }}
+                className={`relative inline-flex items-center rounded-full transition-colors duration-300 focus:outline-none flex-shrink-0 cursor-pointer ${
+                  multiSelectMode ? 'bg-indigo-600' : 'bg-gray-300'
+                }`}
+                style={{ minWidth: 32, width: 32, height: 18 }}
+              >
+                <span
+                  className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform duration-300 ${
+                    multiSelectMode ? 'translate-x-[17px]' : 'translate-x-[2px]'
+                  }`}
+                />
+              </button>
             </div>
 
             <div className="space-y-2">
               {schemaOptions.map((option) => {
-                const isActive = activeSchema === option.id;
-                const isDisabled = option.disabled;
+                const isActive = multiSelectMode || activeSchema === option.id;
+                const isDisabled = option.disabled || multiSelectMode;
                 const Icon = option.icon;
 
                 return (
                   <button
                     key={option.id}
-                    onClick={() => !isDisabled && onSchemaChange(option.id)}
+                    onClick={() => !multiSelectMode && !option.disabled && onSchemaChange(option.id)}
                     disabled={isDisabled}
                     className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 border-2 ${
-                      isDisabled
+                      option.disabled
                         ? 'border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60'
                         : isActive
-                        ? 'border-primary-text bg-primary-text text-white shadow-premium-lg cursor-pointer'
+                        ? `${option.activeColor} shadow-premium-lg cursor-pointer`
                         : 'border-border-gray bg-white text-secondary-text hover:border-secondary-text hover:shadow-premium cursor-pointer'
                     }`}
                     type="button"
                   >
                     <Icon
-                      className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-white' : 'text-secondary-text'}`}
+                      className={`w-5 h-5 flex-shrink-0 ${isActive && !option.disabled ? option.iconColor : 'text-secondary-text'}`}
                       strokeWidth={2}
                     />
                     <span className="text-sm font-semibold text-left flex-1">
                       {option.label}
                     </span>
+                    {multiSelectMode && !option.disabled && (
+                      <span className="w-2 h-2 rounded-full bg-white/80 flex-shrink-0" />
+                    )}
                   </button>
                 );
               })}

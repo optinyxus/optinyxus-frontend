@@ -2,7 +2,43 @@ import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../../components/common/Navbar';
 import EngageSyncSidebar from '../../components/sidebars/EngageSyncSidebar';
-import { X, Users, Zap, ChevronRight, Tag, Activity, RefreshCcw, Heart } from 'lucide-react';
+import { X, Users, Zap, ChevronRight, Tag, Activity, RefreshCcw, Heart, LayoutGrid } from 'lucide-react';
+
+// ─── Multi-Select Matrix Data ───────────────────────────────────────────────
+const RFM_SEGMENTS = [
+  { id: 'rfm_prime',  label: 'Prime',  score: 3, count: 3000 },
+  { id: 'rfm_active', label: 'Active', score: 2, count: 5000 },
+  { id: 'rfm_fading', label: 'Fading', score: 1, count: 2000 },
+];
+
+const LOYALTY_SEGMENTS = [
+  { id: 'lo_evan',    label: 'Evangelist',              score: 5, count: 2000 },
+  { id: 'lo_brand',  label: 'Brand Loyalist',           score: 3, count: 3000 },
+  { id: 'lo_trans',  label: 'Transactional',            score: 2, count: 2000 },
+  { id: 'lo_neut',   label: 'Neutral Customer',         score: 1, count: 3000 },
+];
+
+const BEHAVIOUR_SEGMENTS = [
+  { id: 'bh_deal',   label: 'Deal Hunters',          score: 8,  count: 2500 },
+  { id: 'bh_prem',   label: 'Premium Seekers',        score: 21, count: 1000 },
+  { id: 'bh_var',    label: 'Variety Explorers',      score: 3,  count: 1500 },
+  { id: 'bh_quick',  label: 'Quick Buyers',           score: 13, count: 2500 },
+  { id: 'bh_res',    label: 'Researchers',            score: 1,  count: 500  },
+  { id: 'bh_conv',   label: 'Convenience Seekers',    score: 5,  count: 1500 },
+  { id: 'bh_need',   label: 'Need Driven',            score: 2,  count: 500  },
+];
+
+const LIFECYCLE_SEGMENTS = [
+  { id: 'lc_prosp',  label: 'Prospect',        score: 2,  count: 1000 },
+  { id: 'lc_new',    label: 'New Customers',   score: 5,  count: 500  },
+  { id: 'lc_grow',   label: 'Growing',         score: 8,  count: 2500 },
+  { id: 'lc_mat',    label: 'Mature',          score: 13, count: 3000 },
+  { id: 'lc_risk',   label: 'At-Risk',         score: 3,  count: 1000 },
+  { id: 'lc_dorm',   label: 'Dormant',         score: 1,  count: 2000 },
+];
+
+const getCellValue = (rfmScore, loyaltyScore, behaviourScore, lifecycleScore) =>
+  (rfmScore * loyaltyScore * behaviourScore * lifecycleScore) % 1000;
 
 // ─── Schema Data ──────────────────────────────────────────────────────────────
 const SCHEMA_DATA = {
@@ -154,11 +190,16 @@ const EngageSync = () => {
   const [cltvValue, setCltvValue] = useState('All');
   const [elasticityValue, setElasticityValue] = useState('All');
 
-  // Schema selection
+  // Schema selection (existing single-select — untouched)
   const [activeSchema, setActiveSchema] = useState(null);
 
   // Popup state
   const [popup, setPopup] = useState(null); // { type: 'segment'|'treatment', schema, item }
+
+  // ── Multi-Select Mode state ────────────────────────────────────────────────
+  const [multiSelectMode, setMultiSelectMode] = useState(false);
+  const [selectedRfm, setSelectedRfm] = useState(RFM_SEGMENTS[0]);
+  const [selectedLifecycle, setSelectedLifecycle] = useState(LIFECYCLE_SEGMENTS[0]);
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
@@ -353,6 +394,8 @@ const EngageSync = () => {
         onElasticityChange={setElasticityValue}
         activeSchema={activeSchema}
         onSchemaChange={setActiveSchema}
+        multiSelectMode={multiSelectMode}
+        onMultiSelectChange={setMultiSelectMode}
       />
 
       {/* Navbar */}
@@ -368,7 +411,9 @@ const EngageSync = () => {
               <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
                 <h1 className="text-lg sm:text-xl font-bold text-primary-text">Segmentation Schema</h1>
                 <p className="text-xs sm:text-sm text-muted-text">
-                  Select a segmentation model to view and manage customer segments and their treatments.
+                  {multiSelectMode
+                    ? 'Multi-Select mode active — showing full segmentation matrix.'
+                    : 'Select a segmentation model to view and manage customer segments and their treatments.'}
                 </p>
               </div>
               {/* Active filter badges */}
@@ -389,12 +434,17 @@ const EngageSync = () => {
                     </button>
                   </span>
                 )}
+                {multiSelectMode && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold">
+                    Multi-Select ON
+                  </span>
+                )}
               </div>
             </div>
           </div>
 
-          {/* ── Segment + Treatment Boxes ────────────────────────── */}
-          {activeSchema && (() => {
+          {/* ── Segment + Treatment Boxes (only in single-select mode) ── */}
+          {!multiSelectMode && activeSchema && (() => {
             const schema = SCHEMA_DATA[activeSchema];
             const colors = COLOR_MAP[schema.color];
             const Icon = schema.icon;
@@ -474,8 +524,8 @@ const EngageSync = () => {
             );
           })()}
 
-          {/* ── Empty state (no schema selected) ───────────────── */}
-          {!activeSchema && (
+          {/* ── Empty state (no schema selected, single-select mode only) ─── */}
+          {!activeSchema && !multiSelectMode && (
             <div className="bg-card-bg rounded-lg p-10 sm:p-16 shadow-premium-md border border-border-gray text-center w-full lg:w-1/2">
               <div className="w-16 h-16 bg-gradient-light rounded-xl flex items-center justify-center mx-auto mb-5 border border-border-gray">
                 <Users className="w-8 h-8 text-secondary-text" strokeWidth={2} />
@@ -486,6 +536,160 @@ const EngageSync = () => {
               <p className="text-sm text-muted-text max-w-sm mx-auto">
                 Select a schema from the left sidebar to view the segments and their assigned treatments.
               </p>
+            </div>
+          )}
+
+          {/* ── Multi-Select Matrix ──────────────────────────────── */}
+          {multiSelectMode && (
+            <div className="bg-card-bg rounded-lg shadow-premium-md border border-border-gray w-full">
+
+              <div className="p-4 sm:p-5 space-y-5">
+                {/* ── Top Filter Row: RFM (left) + Lifecycle (right) ── */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 sm:gap-6">
+                  {/* RFM Dropdown */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-bold text-muted-text uppercase tracking-wider">RFM Segment</label>
+                    <select
+                      value={selectedRfm.id}
+                      onChange={e => setSelectedRfm(RFM_SEGMENTS.find(r => r.id === e.target.value))}
+                      className="px-3 py-2 border-2 border-indigo-200 bg-indigo-50 text-indigo-800 rounded-lg text-xs font-semibold focus:outline-none focus:border-indigo-500 cursor-pointer transition-colors min-w-[160px]"
+                    >
+                      {RFM_SEGMENTS.map(r => (
+                        <option key={r.id} value={r.id}>{r.label} (Score {r.score}, {r.count.toLocaleString()} customers)</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex-1" />
+
+                  {/* Lifecycle Dropdown */}
+                  <div className="flex flex-col gap-1 sm:items-end">
+                    <label className="text-[10px] font-bold text-muted-text uppercase tracking-wider">Lifecycle Segment</label>
+                    <select
+                      value={selectedLifecycle.id}
+                      onChange={e => setSelectedLifecycle(LIFECYCLE_SEGMENTS.find(l => l.id === e.target.value))}
+                      className="px-3 py-2 border-2 border-emerald-200 bg-emerald-50 text-emerald-800 rounded-lg text-xs font-semibold focus:outline-none focus:border-emerald-500 cursor-pointer transition-colors min-w-[190px]"
+                    >
+                      {LIFECYCLE_SEGMENTS.map(l => (
+                        <option key={l.id} value={l.id}>{l.label} (Score {l.score}, {l.count.toLocaleString()} customers)</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Selected filter pills */}
+                <div className="flex flex-wrap gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold">
+                    RFM: {selectedRfm.label}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
+                    Lifecycle: {selectedLifecycle.label}
+                  </span>
+                </div>
+
+                {/* ── Matrix Table ── */}
+                <div className="overflow-x-auto rounded-lg border border-gray-300">
+                  <table className="w-full text-xs border-collapse" style={{minWidth: 700}}>
+                    <thead>
+                      {/* Behaviour header */}
+                      <tr>
+                        <td className="border border-gray-300 bg-gray-50 p-2" rowSpan={2} />
+                        <td className="border border-gray-300 bg-gray-50 p-2" rowSpan={2} />
+                        <td
+                          colSpan={BEHAVIOUR_SEGMENTS.length + 1}
+                          className="border border-gray-300 bg-amber-50 text-amber-800 font-bold text-center py-2 px-3 tracking-wide"
+                        >
+                          Behaviour Segments
+                        </td>
+                      </tr>
+                      <tr>
+                        {BEHAVIOUR_SEGMENTS.map(b => (
+                          <th
+                            key={b.id}
+                            className="border border-gray-300 bg-amber-50 text-amber-900 font-semibold py-2 px-2 text-center whitespace-nowrap"
+                          >
+                            {b.label}
+                            <br />
+                            <span className="text-[9px] font-normal text-amber-600">({b.count.toLocaleString()})</span>
+                          </th>
+                        ))}
+                        <th className="border border-gray-300 bg-gray-100 text-gray-700 font-bold py-2 px-3 text-center">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {LOYALTY_SEGMENTS.map((lo, loIdx) => {
+                        const rowTotal = BEHAVIOUR_SEGMENTS.reduce(
+                          (sum, bh) => sum + getCellValue(selectedRfm.score, lo.score, bh.score, selectedLifecycle.score),
+                          0
+                        );
+                        return (
+                          <tr key={lo.id}>
+                            {/* Row span label for "Loyalty Segments" */}
+                            {loIdx === 0 && (
+                              <td
+                                rowSpan={LOYALTY_SEGMENTS.length + 1}
+                                className="border border-gray-300 bg-rose-50 text-rose-800 font-bold text-center"
+                                style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', minWidth: 28, padding: '8px 4px' }}
+                              >
+                                Loyalty Segments
+                              </td>
+                            )}
+                            <td className="border border-gray-300 bg-rose-50 text-rose-900 font-semibold py-2 px-3 whitespace-nowrap">
+                              {lo.label}
+                              <br />
+                              <span className="text-[9px] font-normal text-rose-500">({lo.count.toLocaleString()})</span>
+                            </td>
+                            {BEHAVIOUR_SEGMENTS.map(bh => {
+                              const val = getCellValue(selectedRfm.score, lo.score, bh.score, selectedLifecycle.score);
+                              const intensity = Math.min(255, Math.round((val / 1000) * 255));
+                              return (
+                                <td
+                                  key={bh.id}
+                                  className="border border-gray-300 text-center py-2 px-2 font-medium transition-colors"
+                                  style={{
+                                    backgroundColor: val > 0
+                                      ? `rgba(99,102,241,${0.05 + (val / 1000) * 0.35})`
+                                      : '#f9fafb',
+                                    color: val > 600 ? '#3730a3' : '#374151',
+                                  }}
+                                >
+                                  {val.toLocaleString()}
+                                </td>
+                              );
+                            })}
+                            <td className="border border-gray-300 bg-gray-50 text-center font-bold text-gray-800 py-2 px-3">
+                              {rowTotal.toLocaleString()}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {/* Column totals row */}
+                      <tr>
+                        <td className="border border-gray-300 bg-gray-100 text-gray-700 font-bold text-center py-2 px-3" colSpan={1}>Total</td>
+                        {BEHAVIOUR_SEGMENTS.map(bh => {
+                          const colTotal = LOYALTY_SEGMENTS.reduce(
+                            (sum, lo) => sum + getCellValue(selectedRfm.score, lo.score, bh.score, selectedLifecycle.score),
+                            0
+                          );
+                          return (
+                            <td key={bh.id} className="border border-gray-300 bg-gray-100 text-center font-bold text-gray-800 py-2 px-2">
+                              {colTotal.toLocaleString()}
+                            </td>
+                          );
+                        })}
+                        <td className="border border-gray-300 bg-gray-200 text-center font-bold text-gray-900 py-2 px-3">
+                          {LOYALTY_SEGMENTS.reduce((sum, lo) =>
+                            sum + BEHAVIOUR_SEGMENTS.reduce((s2, bh) =>
+                              s2 + getCellValue(selectedRfm.score, lo.score, bh.score, selectedLifecycle.score), 0), 0
+                          ).toLocaleString()}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+
+              </div>
             </div>
           )}
 
