@@ -7,41 +7,41 @@ import { X, Users, Zap, ChevronRight, Tag, Activity, RefreshCcw, Heart, LayoutGr
 // ─── Segment arrays per schema (for 2x2 Matrix, same data as Multi-Select) ────
 const SCHEMA_SEGMENTS = {
   rfm: [
-    { id: 'rfm_prime',  label: 'Prime',  score: 3, count: 3000 },
+    { id: 'rfm_prime', label: 'Prime', score: 3, count: 3000 },
     { id: 'rfm_active', label: 'Active', score: 2, count: 5000 },
     { id: 'rfm_fading', label: 'Fading', score: 1, count: 2000 },
   ],
   loyalty: [
-    { id: 'lo_evan',   label: 'Evangelist',     score: 5, count: 2000 },
-    { id: 'lo_brand',  label: 'Brand Loyalist',  score: 3, count: 3000 },
-    { id: 'lo_trans',  label: 'Transactional',   score: 2, count: 2000 },
-    { id: 'lo_neut',   label: 'Neutral Customer', score: 1, count: 3000 },
+    { id: 'lo_evan', label: 'Evangelist', score: 5, count: 2000 },
+    { id: 'lo_brand', label: 'Brand Loyalist', score: 3, count: 3000 },
+    { id: 'lo_trans', label: 'Transactional', score: 2, count: 2000 },
+    { id: 'lo_neut', label: 'Neutral Customer', score: 1, count: 3000 },
   ],
   behavior: [
-    { id: 'bh_deal',  label: 'Deal Hunters',       score: 8,  count: 2500 },
-    { id: 'bh_prem',  label: 'Premium Seekers',     score: 21, count: 1000 },
-    { id: 'bh_var',   label: 'Variety Explorers',   score: 3,  count: 1500 },
-    { id: 'bh_quick', label: 'Quick Buyers',         score: 13, count: 2500 },
-    { id: 'bh_res',   label: 'Researchers',          score: 1,  count: 500  },
-    { id: 'bh_conv',  label: 'Convenience Seekers',  score: 5,  count: 1500 },
-    { id: 'bh_need',  label: 'Need Driven',          score: 2,  count: 500  },
+    { id: 'bh_deal', label: 'Deal Hunters', score: 8, count: 2500 },
+    { id: 'bh_prem', label: 'Premium Seekers', score: 21, count: 1000 },
+    { id: 'bh_var', label: 'Variety Explorers', score: 3, count: 1500 },
+    { id: 'bh_quick', label: 'Quick Buyers', score: 13, count: 2500 },
+    { id: 'bh_res', label: 'Researchers', score: 1, count: 500 },
+    { id: 'bh_conv', label: 'Convenience Seekers', score: 5, count: 1500 },
+    { id: 'bh_need', label: 'Need Driven', score: 2, count: 500 },
   ],
   lifecycle: [
-    { id: 'lc_prosp', label: 'Prospect',      score: 2,  count: 1000 },
-    { id: 'lc_new',   label: 'New Customers', score: 5,  count: 500  },
-    { id: 'lc_grow',  label: 'Growing',       score: 8,  count: 2500 },
-    { id: 'lc_mat',   label: 'Mature',        score: 13, count: 3000 },
-    { id: 'lc_risk',  label: 'At-Risk',       score: 3,  count: 1000 },
-    { id: 'lc_dorm',  label: 'Dormant',       score: 1,  count: 2000 },
+    { id: 'lc_prosp', label: 'Prospect', score: 2, count: 1000 },
+    { id: 'lc_new', label: 'New Customers', score: 5, count: 500 },
+    { id: 'lc_grow', label: 'Growing', score: 8, count: 2500 },
+    { id: 'lc_mat', label: 'Mature', score: 13, count: 3000 },
+    { id: 'lc_risk', label: 'At-Risk', score: 3, count: 1000 },
+    { id: 'lc_dorm', label: 'Dormant', score: 1, count: 2000 },
   ],
 };
 
 // Row/column axis colours — match Multi-Select palette
 const AXIS_STYLE = {
-  rfm:       { rowBg: 'bg-indigo-50', rowText: 'text-indigo-800', rowCount: 'text-indigo-500', headerBg: 'bg-indigo-50 text-indigo-800',   headerCount: 'text-indigo-600',  colSpanBg: 'bg-indigo-50 text-indigo-800'  },
-  loyalty:   { rowBg: 'bg-rose-50',   rowText: 'text-rose-800',   rowCount: 'text-rose-500',   headerBg: 'bg-rose-50 text-rose-800',       headerCount: 'text-rose-600',    colSpanBg: 'bg-rose-50 text-rose-800'      },
-  behavior:  { rowBg: 'bg-amber-50',  rowText: 'text-amber-800',  rowCount: 'text-amber-500',  headerBg: 'bg-amber-50 text-amber-800',     headerCount: 'text-amber-600',   colSpanBg: 'bg-amber-50 text-amber-800'   },
-  lifecycle: { rowBg: 'bg-emerald-50',rowText: 'text-emerald-800',rowCount: 'text-emerald-500',headerBg: 'bg-emerald-50 text-emerald-800', headerCount: 'text-emerald-600', colSpanBg: 'bg-emerald-50 text-emerald-800'},
+  rfm: { rowBg: 'bg-indigo-50', rowText: 'text-indigo-800', rowCount: 'text-indigo-500', headerBg: 'bg-indigo-50 text-indigo-800', headerCount: 'text-indigo-600', colSpanBg: 'bg-indigo-50 text-indigo-800' },
+  loyalty: { rowBg: 'bg-rose-50', rowText: 'text-rose-800', rowCount: 'text-rose-500', headerBg: 'bg-rose-50 text-rose-800', headerCount: 'text-rose-600', colSpanBg: 'bg-rose-50 text-rose-800' },
+  behavior: { rowBg: 'bg-amber-50', rowText: 'text-amber-800', rowCount: 'text-amber-500', headerBg: 'bg-amber-50 text-amber-800', headerCount: 'text-amber-600', colSpanBg: 'bg-amber-50 text-amber-800' },
+  lifecycle: { rowBg: 'bg-emerald-50', rowText: 'text-emerald-800', rowCount: 'text-emerald-500', headerBg: 'bg-emerald-50 text-emerald-800', headerCount: 'text-emerald-600', colSpanBg: 'bg-emerald-50 text-emerald-800' },
 };
 
 // ─── MatrixPanel ─────────────────────────────────────────────────────────────
@@ -50,12 +50,12 @@ const AXIS_STYLE = {
 const MatrixPanel = ({ ySchemaId, xSchemaId }) => {
   // ySchemaId = first selected (rows / Y-axis)
   // xSchemaId = second selected (columns / X-axis)
-  const yLabel    = ySchemaId === 'lifecycle' ? 'Life Cycle' : ySchemaId.charAt(0).toUpperCase() + ySchemaId.slice(1);
-  const xLabel    = xSchemaId === 'lifecycle' ? 'Life Cycle' : xSchemaId.charAt(0).toUpperCase() + xSchemaId.slice(1);
-  const ySegs     = SCHEMA_SEGMENTS[ySchemaId];
-  const xSegs     = SCHEMA_SEGMENTS[xSchemaId];
-  const yStyle    = AXIS_STYLE[ySchemaId];
-  const xStyle    = AXIS_STYLE[xSchemaId];
+  const yLabel = ySchemaId === 'lifecycle' ? 'Life Cycle' : ySchemaId.charAt(0).toUpperCase() + ySchemaId.slice(1);
+  const xLabel = xSchemaId === 'lifecycle' ? 'Life Cycle' : xSchemaId.charAt(0).toUpperCase() + xSchemaId.slice(1);
+  const ySegs = SCHEMA_SEGMENTS[ySchemaId];
+  const xSegs = SCHEMA_SEGMENTS[xSchemaId];
+  const yStyle = AXIS_STYLE[ySchemaId];
+  const xStyle = AXIS_STYLE[xSchemaId];
 
   // Reuse exact getCellValue(rfm, loyalty, behaviour, lifecycle) — we call with
   // the row segment score on its own axis and 1 for axes not in this matrix.
@@ -183,35 +183,35 @@ const MatrixPanel = ({ ySchemaId, xSchemaId }) => {
 
 // ─── Multi-Select Matrix Data ───────────────────────────────────────────────
 const RFM_SEGMENTS = [
-  { id: 'rfm_prime',  label: 'Prime',  score: 3, count: 3000 },
+  { id: 'rfm_prime', label: 'Prime', score: 3, count: 3000 },
   { id: 'rfm_active', label: 'Active', score: 2, count: 5000 },
   { id: 'rfm_fading', label: 'Fading', score: 1, count: 2000 },
 ];
 
 const LOYALTY_SEGMENTS = [
-  { id: 'lo_evan',    label: 'Evangelist',              score: 5, count: 2000 },
-  { id: 'lo_brand',  label: 'Brand Loyalist',           score: 3, count: 3000 },
-  { id: 'lo_trans',  label: 'Transactional',            score: 2, count: 2000 },
-  { id: 'lo_neut',   label: 'Neutral Customer',         score: 1, count: 3000 },
+  { id: 'lo_evan', label: 'Evangelist', score: 5, count: 2000 },
+  { id: 'lo_brand', label: 'Brand Loyalist', score: 3, count: 3000 },
+  { id: 'lo_trans', label: 'Transactional', score: 2, count: 2000 },
+  { id: 'lo_neut', label: 'Neutral Customer', score: 1, count: 3000 },
 ];
 
 const BEHAVIOUR_SEGMENTS = [
-  { id: 'bh_deal',   label: 'Deal Hunters',          score: 8,  count: 2500 },
-  { id: 'bh_prem',   label: 'Premium Seekers',        score: 21, count: 1000 },
-  { id: 'bh_var',    label: 'Variety Explorers',      score: 3,  count: 1500 },
-  { id: 'bh_quick',  label: 'Quick Buyers',           score: 13, count: 2500 },
-  { id: 'bh_res',    label: 'Researchers',            score: 1,  count: 500  },
-  { id: 'bh_conv',   label: 'Convenience Seekers',    score: 5,  count: 1500 },
-  { id: 'bh_need',   label: 'Need Driven',            score: 2,  count: 500  },
+  { id: 'bh_deal', label: 'Deal Hunters', score: 8, count: 2500 },
+  { id: 'bh_prem', label: 'Premium Seekers', score: 21, count: 1000 },
+  { id: 'bh_var', label: 'Variety Explorers', score: 3, count: 1500 },
+  { id: 'bh_quick', label: 'Quick Buyers', score: 13, count: 2500 },
+  { id: 'bh_res', label: 'Researchers', score: 1, count: 500 },
+  { id: 'bh_conv', label: 'Convenience Seekers', score: 5, count: 1500 },
+  { id: 'bh_need', label: 'Need Driven', score: 2, count: 500 },
 ];
 
 const LIFECYCLE_SEGMENTS = [
-  { id: 'lc_prosp',  label: 'Prospect',        score: 2,  count: 1000 },
-  { id: 'lc_new',    label: 'New Customers',   score: 5,  count: 500  },
-  { id: 'lc_grow',   label: 'Growing',         score: 8,  count: 2500 },
-  { id: 'lc_mat',    label: 'Mature',          score: 13, count: 3000 },
-  { id: 'lc_risk',   label: 'At-Risk',         score: 3,  count: 1000 },
-  { id: 'lc_dorm',   label: 'Dormant',         score: 1,  count: 2000 },
+  { id: 'lc_prosp', label: 'Prospect', score: 2, count: 1000 },
+  { id: 'lc_new', label: 'New Customers', score: 5, count: 500 },
+  { id: 'lc_grow', label: 'Growing', score: 8, count: 2500 },
+  { id: 'lc_mat', label: 'Mature', score: 13, count: 3000 },
+  { id: 'lc_risk', label: 'At-Risk', score: 3, count: 1000 },
+  { id: 'lc_dorm', label: 'Dormant', score: 1, count: 2000 },
 ];
 
 const getCellValue = (rfmScore, loyaltyScore, behaviourScore, lifecycleScore) =>
@@ -803,7 +803,7 @@ const EngageSync = () => {
 
                 {/* ── Matrix Table ── */}
                 <div className="overflow-x-auto rounded-lg border border-gray-300">
-                  <table className="w-full text-xs border-collapse" style={{minWidth: 700}}>
+                  <table className="w-full text-xs border-collapse" style={{ minWidth: 700 }}>
                     <thead>
                       {/* Behaviour header */}
                       <tr>
@@ -977,6 +977,90 @@ const EngageSync = () => {
               </div>
             );
           })()}
+
+          {/* ── Decision Segment Action Agenda ───────────────────── */}
+          {(multiSelectMode || matrixMode) && (
+            <div className="w-full">
+              {/* Header row */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                <h2 className="text-base sm:text-lg font-bold text-primary-text">Decision Segment Action Agenda</h2>
+                <button
+                  type="button"
+                  onClick={() => alert('PriceGenix Customer Portfolio — coming soon!')}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 sm:py-1.5 rounded-lg text-xs font-semibold text-white shadow-md transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95"
+                  style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', boxShadow: '0 2px 8px rgba(99,102,241,0.35)' }}
+                >
+                  PriceGenix (Customer Portfolio)
+                </button>
+              </div>
+
+              {/* Table card — overflow-x-auto keeps it scrollable on mobile */}
+              <div className="bg-card-bg rounded-lg shadow-premium-md border border-border-gray w-full overflow-x-auto">
+                <table className="w-full text-xs border-collapse" style={{ minWidth: 520 }}>
+                  <thead>
+                    {/* "Strategic Action" spanning L1/L2/L3 */}
+                    <tr>
+                      <th className="border border-gray-300 bg-gray-50 py-2 px-3" rowSpan={2} style={{ textAlign: 'left' }}>
+                        Decision Segment
+                      </th>
+                      <th className="border border-gray-300 bg-gray-50 py-2 px-3" rowSpan={2} style={{ textAlign: 'left' }}>
+                        Action
+                      </th>
+                      <th
+                        colSpan={3}
+                        className="border border-gray-300 bg-indigo-50 font-bold text-center py-2 px-3 text-indigo-800 tracking-wide"
+                      >
+                        Strategic Action
+                      </th>
+                    </tr>
+                    <tr>
+                      <th className="border border-gray-300 bg-indigo-50 font-semibold py-2 px-3 text-center text-indigo-700">L1</th>
+                      <th className="border border-gray-300 bg-indigo-50 font-semibold py-2 px-3 text-center text-indigo-700">L2</th>
+                      <th className="border border-gray-300 bg-indigo-50 font-semibold py-2 px-3 text-center text-indigo-700">L3</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { ds: 'Decision Segment 1', action: 'Retain, Cross-sell, Up-sell', l1: 'Community, Early access', l2: 'Loyalty programs', l3: '' },
+                      { ds: 'Decision Segment 2', action: 'Retain, Cross-sell, Up-sell', l1: 'Community, Early access', l2: 'Loyalty programs', l3: '' },
+                      { ds: 'Decision Segment 3', action: 'Basket Growth & Cross-Sell', l1: 'Brand reinforcement', l2: 'Purchase Convenience', l3: '' },
+                      { ds: 'Decision Segment 4', action: 'Basket Growth & Cross-Sell', l1: 'Brand reinforcement', l2: 'Selective Discount Coupon', l3: 'Nudge & convert' },
+                      { ds: 'Decision Segment 5', action: 'Basket Growth & Cross-Sell', l1: 'Brand reinforcement', l2: 'Purchase Convenience', l3: 'Selective Discount Coupon' },
+                      { ds: 'Decision Segment 6', action: 'Nudge & Convert', l1: 'Brand reinforcement', l2: 'Selective Wallet Cashback', l3: '' },
+                      { ds: 'Decision Segment 7', action: 'Nudge & Convert', l1: 'Nudge & convert', l2: 'Selective Wallet Cashback', l3: '' },
+                      { ds: 'Decision Segment 8', action: 'Nudge & Convert', l1: 'Product Content', l2: '', l3: 'Selective Wallet Cashback' },
+                      { ds: 'Decision Segment 9', action: 'Low-Cost Engagement', l1: 'Content', l2: '', l3: 'Selective Wallet Cashback' },
+                      { ds: 'Decision Segment 10', action: 'Low-Cost Engagement', l1: 'Content', l2: '', l3: '' },
+                    ].map((row, idx) => {
+                      const theme = row.action.startsWith('Retain')
+                        ? { rowBg: '#f5f7ff', dsAccent: '#6366f1', dsBg: '#eef0fd', dsText: '#3730a3', actionBg: '#e0e7ff', actionText: '#4338ca', pill: '#f0f4ff', pillBorder: '#c7d2fe', pillText: '#4338ca' }
+                        : row.action.startsWith('Basket')
+                          ? { rowBg: '#fffbf0', dsAccent: '#f59e0b', dsBg: '#fef9ee', dsText: '#92400e', actionBg: '#fef3c7', actionText: '#b45309', pill: '#fffbeb', pillBorder: '#fde68a', pillText: '#92400e' }
+                          : row.action.startsWith('Nudge')
+                            ? { rowBg: '#faf5ff', dsAccent: '#8b5cf6', dsBg: '#f5f0ff', dsText: '#5b21b6', actionBg: '#ede9fe', actionText: '#6d28d9', pill: '#f5f3ff', pillBorder: '#ddd6fe', pillText: '#5b21b6' }
+                            : { rowBg: '#f0fdf9', dsAccent: '#10b981', dsBg: '#ecfdf5', dsText: '#065f46', actionBg: '#d1fae5', actionText: '#047857', pill: '#f0fdf4', pillBorder: '#a7f3d0', pillText: '#065f46' };
+
+                      const Pill = ({ val }) => val
+                        ? <span style={{ display: 'inline-block', background: theme.pill, border: `1px solid ${theme.pillBorder}`, color: theme.pillText, borderRadius: 4, padding: '1px 7px', fontWeight: 500 }}>{val}</span>
+                        : <span style={{ color: '#d1d5db' }}>—</span>;
+
+                      return (
+                        <tr key={idx} style={{ background: theme.rowBg }}>
+                          <td className="border border-gray-300 py-2 px-3 font-semibold whitespace-nowrap" style={{ background: theme.dsBg, borderLeft: `4px solid ${theme.dsAccent}`, color: theme.dsText }}>{row.ds}</td>
+                          <td className="border border-gray-300 py-2 px-3">
+                            <span style={{ display: 'inline-block', background: theme.actionBg, color: theme.actionText, borderRadius: 20, padding: '2px 10px', fontWeight: 600, fontSize: 11 }}>{row.action}</span>
+                          </td>
+                          <td className="border border-gray-300 py-2 px-3 text-center"><Pill val={row.l1} /></td>
+                          <td className="border border-gray-300 py-2 px-3 text-center"><Pill val={row.l2} /></td>
+                          <td className="border border-gray-300 py-2 px-3 text-center"><Pill val={row.l3} /></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
         </div>
       </div>
