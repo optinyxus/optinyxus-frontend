@@ -106,7 +106,7 @@ const MatrixPanel = ({ ySchemaId, xSchemaId, showDecisionBtn, onDecisionClick })
                   colSpan={xSegs.length + 1}
                   className={`border border-gray-300 font-bold text-center py-2 px-3 tracking-wide ${xStyle.headerBg}`}
                 >
-                  {xLabel} Segments <span className="font-normal text-[10px] opacity-60">(X-axis / Columns)</span>
+                  {xLabel} Segments
                 </td>
               </tr>
               <tr>
@@ -134,7 +134,7 @@ const MatrixPanel = ({ ySchemaId, xSchemaId, showDecisionBtn, onDecisionClick })
                         className={`border border-gray-300 font-bold text-center ${yStyle.colSpanBg}`}
                         style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', minWidth: 28, padding: '8px 4px' }}
                       >
-                        {yLabel} Segments <span className="font-normal text-[9px] opacity-60">(Y)</span>
+                        {yLabel} Segments
                       </td>
                     )}
                     {/* Row label */}
@@ -145,10 +145,11 @@ const MatrixPanel = ({ ySchemaId, xSchemaId, showDecisionBtn, onDecisionClick })
                     {/* Data cells */}
                     {xSegs.map(x => {
                       const val = cell(y, x);
+                      const dsStr = `D${(val % 10) + 1}`;
                       return (
                         <td
                           key={x.id}
-                          className="border border-gray-300 text-center py-2 px-2 font-medium transition-colors"
+                          className="border border-gray-300 text-center py-2 px-2 font-medium transition-colors relative"
                           style={{
                             backgroundColor: val > 0
                               ? `rgba(99,102,241,${0.05 + (val / 1000) * 0.35})`
@@ -156,7 +157,8 @@ const MatrixPanel = ({ ySchemaId, xSchemaId, showDecisionBtn, onDecisionClick })
                             color: val > 600 ? '#3730a3' : '#374151',
                           }}
                         >
-                          {val.toLocaleString()}
+                          <div className="font-bold">{val.toLocaleString()}</div>
+                          <div className="text-[10px] font-semibold opacity-60 mt-0.5">{dsStr}</div>
                         </td>
                       );
                     })}
@@ -401,11 +403,13 @@ const EngageSync = () => {
   // Mutual-exclusion: turning on multi-select turns off matrix mode, and vice-versa
   const handleMultiSelectChange = (val) => {
     setMultiSelectMode(val);
+    setShowDecisionAgenda(false);
     if (val) { setMatrixMode(false); setMatrixSchemaOrder([]); }
   };
 
   const handleMatrixModeChange = (val) => {
     setMatrixMode(val);
+    setShowDecisionAgenda(false);
     if (val) { setMultiSelectMode(false); }
     if (!val) { setMatrixSchemaOrder([]); }
   };
@@ -879,10 +883,11 @@ const EngageSync = () => {
                             {BEHAVIOUR_SEGMENTS.map(bh => {
                               const val = getCellValue(selectedRfm.score, lo.score, bh.score, selectedLifecycle.score);
                               const intensity = Math.min(255, Math.round((val / 1000) * 255));
+                              const dsStr = `D${(val % 10) + 1}`;
                               return (
                                 <td
                                   key={bh.id}
-                                  className="border border-gray-300 text-center py-2 px-2 font-medium transition-colors"
+                                  className="border border-gray-300 text-center py-2 px-2 font-medium transition-colors relative"
                                   style={{
                                     backgroundColor: val > 0
                                       ? `rgba(99,102,241,${0.05 + (val / 1000) * 0.35})`
@@ -890,7 +895,8 @@ const EngageSync = () => {
                                     color: val > 600 ? '#3730a3' : '#374151',
                                   }}
                                 >
-                                  {val.toLocaleString()}
+                                  <div className="font-bold">{val.toLocaleString()}</div>
+                                  <div className="text-[10px] font-semibold opacity-60 mt-0.5">{dsStr}</div>
                                 </td>
                               );
                             })}
