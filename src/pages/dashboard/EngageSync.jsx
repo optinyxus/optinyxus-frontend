@@ -145,7 +145,7 @@ const MatrixPanel = ({ ySchemaId, xSchemaId, showDecisionBtn, onDecisionClick })
                     {/* Data cells */}
                     {xSegs.map(x => {
                       const val = cell(y, x);
-                      const dsStr = `D${(val % 10) + 1}`;
+                      const dsStr = `DS${(val % 10) + 1}`;
                       return (
                         <td
                           key={x.id}
@@ -883,7 +883,7 @@ const EngageSync = () => {
                             {BEHAVIOUR_SEGMENTS.map(bh => {
                               const val = getCellValue(selectedRfm.score, lo.score, bh.score, selectedLifecycle.score);
                               const intensity = Math.min(255, Math.round((val / 1000) * 255));
-                              const dsStr = `D${(val % 10) + 1}`;
+                              const dsStr = `DS${(val % 10) + 1}`;
                               return (
                                 <td
                                   key={bh.id}
