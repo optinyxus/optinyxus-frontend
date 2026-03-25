@@ -212,48 +212,6 @@ const EngageSyncSidebar = ({
             </button>
           </div>
 
-          {/* Filters Section */}
-          <div className="p-4 border-b border-border-gray">
-            <div className="flex items-center gap-2 mb-3">
-              <Filter className="w-4 h-4 text-secondary-text" strokeWidth={2} />
-              <h3 className="text-lg font-bold text-primary-text">Filters</h3>
-            </div>
-
-            <div className="space-y-3">
-              {/* CLTV Filter */}
-              <div>
-                <label className="block text-xs font-semibold text-muted-text mb-1">
-                  CLTV (Customer Lifetime Value)
-                </label>
-                <select
-                  value={cltvValue}
-                  onChange={(e) => onCltvChange(e.target.value)}
-                  className="w-full px-2 py-2 border border-border-gray rounded-lg text-xs font-medium focus:outline-none focus:border-secondary-text bg-white text-primary-text"
-                >
-                  {cltvOptions.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Elasticity Filter */}
-              <div>
-                <label className="block text-xs font-semibold text-muted-text mb-1">
-                  Elasticity (Sensitivity)
-                </label>
-                <select
-                  value={elasticityValue}
-                  onChange={(e) => onElasticityChange(e.target.value)}
-                  className="w-full px-2 py-2 border border-border-gray rounded-lg text-xs font-medium focus:outline-none focus:border-secondary-text bg-white text-primary-text"
-                >
-                  {elasticityOptions.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-
           {/* Schema Selection */}
           <div className="p-4 border-b border-border-gray">
             {/* Heading */}
@@ -392,6 +350,48 @@ const EngageSyncSidebar = ({
                 {matrixSchemaOrder && matrixSchemaOrder.length === 4 && '✓ Double matrix ready!'}
               </p>
             )}
+          </div>
+
+          {/* Filters Section */}
+          <div className="p-4 border-b border-border-gray">
+            <div className="flex items-center gap-2 mb-3">
+              <Filter className="w-4 h-4 text-secondary-text" strokeWidth={2} />
+              <h3 className="text-lg font-bold text-primary-text">Filters</h3>
+            </div>
+
+            <div className="space-y-3">
+              {/* CLTV Filter */}
+              <div>
+                <label className="block text-xs font-semibold text-muted-text mb-1">
+                  CLTV (Customer Lifetime Value)
+                </label>
+                <select
+                  value={cltvValue}
+                  onChange={(e) => onCltvChange(e.target.value)}
+                  className="w-full px-2 py-2 border border-border-gray rounded-lg text-xs font-medium focus:outline-none focus:border-secondary-text bg-white text-primary-text"
+                >
+                  {cltvOptions.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Elasticity Filter */}
+              <div>
+                <label className="block text-xs font-semibold text-muted-text mb-1">
+                  Elasticity (Sensitivity)
+                </label>
+                <select
+                  value={elasticityValue}
+                  onChange={(e) => onElasticityChange(e.target.value)}
+                  className="w-full px-2 py-2 border border-border-gray rounded-lg text-xs font-medium focus:outline-none focus:border-secondary-text bg-white text-primary-text"
+                >
+                  {elasticityOptions.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
 
         </div>
