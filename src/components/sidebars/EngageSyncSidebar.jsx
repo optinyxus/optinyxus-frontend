@@ -275,7 +275,7 @@ const EngageSyncSidebar = ({
                 }`}
               >
                 <LayoutGrid className={`w-3 h-3 flex-shrink-0 ${multiSelectMode ? 'text-indigo-600' : 'text-secondary-text'}`} />
-                <span className={`text-[10px] font-semibold whitespace-nowrap ${multiSelectMode ? 'text-indigo-700' : 'text-secondary-text'}`}>Multi-Select</span>
+                <span className={`text-[10px] font-semibold whitespace-nowrap ${multiSelectMode ? 'text-indigo-700' : 'text-secondary-text'}`}>4x4 Matrix</span>
                 <span
                   className={`relative inline-flex items-center rounded-full transition-colors duration-300 focus:outline-none flex-shrink-0 ${
                     multiSelectMode ? 'bg-indigo-600' : 'bg-gray-300'

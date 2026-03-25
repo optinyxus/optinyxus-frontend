@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../../components/common/Navbar';
 import EngageSyncSidebar from '../../components/sidebars/EngageSyncSidebar';
-import { X, Users, Zap, ChevronRight, Tag, Activity, RefreshCcw, Heart, LayoutGrid } from 'lucide-react';
+import { X, Users, Zap, ChevronRight, Tag, Activity, RefreshCcw, Heart, LayoutGrid, DollarSign } from 'lucide-react';
 
 // ─── Segment arrays per schema (for 2x2 Matrix, same data as Multi-Select) ────
 const SCHEMA_SEGMENTS = {
@@ -47,7 +47,7 @@ const AXIS_STYLE = {
 // ─── MatrixPanel ─────────────────────────────────────────────────────────────
 // Uses exact same getCellValue formula and segment data as Multi-Select.
 // Defined as a function expression so it can reference getCellValue defined later.
-const MatrixPanel = ({ ySchemaId, xSchemaId }) => {
+const MatrixPanel = ({ ySchemaId, xSchemaId, showDecisionBtn, onDecisionClick }) => {
   // ySchemaId = first selected (rows / Y-axis)
   // xSchemaId = second selected (columns / X-axis)
   const yLabel = ySchemaId === 'lifecycle' ? 'Life Cycle' : ySchemaId.charAt(0).toUpperCase() + ySchemaId.slice(1);
@@ -73,14 +73,25 @@ const MatrixPanel = ({ ySchemaId, xSchemaId }) => {
       <div className="p-4 sm:p-5 space-y-4">
 
         {/* Axis indicator pills */}
-        <div className="flex flex-wrap items-center gap-2">
-          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold ${yStyle.rowBg} border-current ${yStyle.rowText}`}>
-            Y-axis: {yLabel} Segments
-          </span>
-          <span className="text-xs text-muted-text">×</span>
-          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold ${xStyle.rowBg} border-current ${xStyle.rowText}`}>
-            X-axis: {xLabel} Segments
-          </span>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold ${yStyle.rowBg} border-current ${yStyle.rowText}`}>
+              Y-axis: {yLabel} Segments
+            </span>
+            <span className="text-xs text-muted-text">×</span>
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold ${xStyle.rowBg} border-current ${xStyle.rowText}`}>
+              X-axis: {xLabel} Segments
+            </span>
+          </div>
+          {showDecisionBtn && (
+            <button
+              onClick={onDecisionClick}
+              className="inline-flex items-center justify-center px-4 py-1.5 rounded-lg text-xs font-bold text-white shadow-md transition-all duration-200 hover:scale-105"
+              style={{ background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)' }}
+            >
+              Decision Framework
+            </button>
+          )}
         </div>
 
         {/* Matrix Table — full width, same structure as Multi-Select */}
@@ -373,6 +384,9 @@ const EngageSync = () => {
   // Popup state
   const [popup, setPopup] = useState(null); // { type: 'segment'|'treatment', schema, item }
 
+  // Decision Agenda toggle
+  const [showDecisionAgenda, setShowDecisionAgenda] = useState(false);
+
   // ── Multi-Select Mode state ────────────────────────────────────────────────
   const [multiSelectMode, setMultiSelectMode] = useState(false);
   const [selectedRfm, setSelectedRfm] = useState(RFM_SEGMENTS[0]);
@@ -618,7 +632,7 @@ const EngageSync = () => {
                 <h1 className="text-lg sm:text-xl font-bold text-primary-text">Segmentation Schema</h1>
                 <p className="text-xs sm:text-sm text-muted-text">
                   {multiSelectMode
-                    ? 'Multi-Select mode active — showing full segmentation matrix.'
+                    ? '4x4 Matrix mode active — showing full segmentation matrix.'
                     : 'Select a segmentation model to view and manage customer segments and their treatments.'}
                 </p>
               </div>
@@ -642,7 +656,7 @@ const EngageSync = () => {
                 )}
                 {multiSelectMode && (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold">
-                    Multi-Select ON
+                    4x4 Matrix ON
                   </span>
                 )}
                 {matrixMode && (
@@ -792,13 +806,22 @@ const EngageSync = () => {
                 </div>
 
                 {/* Selected filter pills */}
-                <div className="flex flex-wrap gap-2">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold">
-                    RFM: {selectedRfm.label}
-                  </span>
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
-                    Lifecycle: {selectedLifecycle.label}
-                  </span>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold">
+                      RFM: {selectedRfm.label}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
+                      Lifecycle: {selectedLifecycle.label}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setShowDecisionAgenda(!showDecisionAgenda)}
+                    className="inline-flex items-center justify-center px-4 py-1.5 rounded-lg text-xs font-bold text-white shadow-md transition-all duration-200 hover:scale-105"
+                    style={{ background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)' }}
+                  >
+                    Decision Framework
+                  </button>
                 </div>
 
                 {/* ── Matrix Table ── */}
@@ -948,7 +971,12 @@ const EngageSync = () => {
                         Matrix 1 — {schemaLabel(matrixSchemaOrder[0])} vs {schemaLabel(matrixSchemaOrder[1])}
                       </p>
                     </div>
-                    <MatrixPanel ySchemaId={matrixSchemaOrder[0]} xSchemaId={matrixSchemaOrder[1]} />
+                    <MatrixPanel 
+                      ySchemaId={matrixSchemaOrder[0]} 
+                      xSchemaId={matrixSchemaOrder[1]} 
+                      showDecisionBtn={count < 4}
+                      onDecisionClick={() => setShowDecisionAgenda(!showDecisionAgenda)}
+                    />
                   </div>
                 )}
 
@@ -970,7 +998,12 @@ const EngageSync = () => {
                         Matrix 2 — {schemaLabel(matrixSchemaOrder[2])} vs {schemaLabel(matrixSchemaOrder[3])}
                       </p>
                     </div>
-                    <MatrixPanel ySchemaId={matrixSchemaOrder[2]} xSchemaId={matrixSchemaOrder[3]} />
+                    <MatrixPanel 
+                      ySchemaId={matrixSchemaOrder[2]} 
+                      xSchemaId={matrixSchemaOrder[3]} 
+                      showDecisionBtn={true}
+                      onDecisionClick={() => setShowDecisionAgenda(!showDecisionAgenda)}
+                    />
                   </div>
                 )}
 
@@ -979,17 +1012,18 @@ const EngageSync = () => {
           })()}
 
           {/* ── Decision Segment Action Agenda ───────────────────── */}
-          {(multiSelectMode || matrixMode) && (
-            <div className="w-full">
+          {(multiSelectMode || matrixMode) && showDecisionAgenda && (
+            <div className="w-full mt-24 mb-8">
               {/* Header row */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                 <h2 className="text-base sm:text-lg font-bold text-primary-text">Decision Segment Action Agenda</h2>
                 <button
                   type="button"
                   onClick={() => alert('PriceGenix Customer Portfolio — coming soon!')}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 sm:py-1.5 rounded-lg text-xs font-semibold text-white shadow-md transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95"
-                  style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', boxShadow: '0 2px 8px rgba(99,102,241,0.35)' }}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2 sm:py-2.5 rounded-lg text-[13px] font-bold text-white shadow-md transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95"
+                  style={{ background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)', boxShadow: '0 2px 8px rgba(34,197,94,0.35)' }}
                 >
+                  <DollarSign className="w-4 h-4" strokeWidth={3} />
                   PriceGenix (Customer Portfolio)
                 </button>
               </div>
@@ -1033,12 +1067,12 @@ const EngageSync = () => {
                       { ds: 'Decision Segment 10', action: 'Low-Cost Engagement', l1: 'Content', l2: '', l3: '' },
                     ].map((row, idx) => {
                       const theme = row.action.startsWith('Retain')
-                        ? { rowBg: '#f5f7ff', dsAccent: '#6366f1', dsBg: '#eef0fd', dsText: '#3730a3', actionBg: '#e0e7ff', actionText: '#4338ca', pill: '#f0f4ff', pillBorder: '#c7d2fe', pillText: '#4338ca' }
+                        ? { rowBg: '#f0fdf4', dsAccent: '#10b981', dsBg: '#d1fae5', dsText: '#064e3b', actionBg: '#a7f3d0', actionText: '#047857', pill: '#f0fdf4', pillBorder: '#6ee7b7', pillText: '#047857' }
                         : row.action.startsWith('Basket')
                           ? { rowBg: '#fffbf0', dsAccent: '#f59e0b', dsBg: '#fef9ee', dsText: '#92400e', actionBg: '#fef3c7', actionText: '#b45309', pill: '#fffbeb', pillBorder: '#fde68a', pillText: '#92400e' }
                           : row.action.startsWith('Nudge')
                             ? { rowBg: '#faf5ff', dsAccent: '#8b5cf6', dsBg: '#f5f0ff', dsText: '#5b21b6', actionBg: '#ede9fe', actionText: '#6d28d9', pill: '#f5f3ff', pillBorder: '#ddd6fe', pillText: '#5b21b6' }
-                            : { rowBg: '#f0fdf9', dsAccent: '#10b981', dsBg: '#ecfdf5', dsText: '#065f46', actionBg: '#d1fae5', actionText: '#047857', pill: '#f0fdf4', pillBorder: '#a7f3d0', pillText: '#065f46' };
+                            : { rowBg: '#fff1f2', dsAccent: '#f43f5e', dsBg: '#ffe4e6', dsText: '#9f1239', actionBg: '#fecdd3', actionText: '#e11d48', pill: '#fff1f2', pillBorder: '#fecdd3', pillText: '#9f1239' };
 
                       const Pill = ({ val }) => val
                         ? <span style={{ display: 'inline-block', background: theme.pill, border: `1px solid ${theme.pillBorder}`, color: theme.pillText, borderRadius: 4, padding: '1px 7px', fontWeight: 500 }}>{val}</span>
