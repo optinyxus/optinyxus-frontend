@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useAppState } from '../../context/AppStateContext';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../../components/common/Navbar';
 import MarketEdgeSidebar from '../../components/sidebars/MarketEdgeSidebar';
@@ -66,6 +67,7 @@ const mockPastIterations = [
 
 const MarketEdge = () => {
   const navigate = useNavigate();
+  const { marketedge: meCtx, setMarketedgeState } = useAppState();
 
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -145,6 +147,20 @@ const MarketEdge = () => {
 
 
   useEffect(() => {
+    // --- 1. Restore runtime results from in-memory context (survives navigation) ---
+    // MarketEdge intentionally excludes results from localStorage to save space,
+    // so context is the ONLY way to persist results across navigation.
+    if (meCtx.isOptimizing || meCtx.hasResults) {
+      if (meCtx.isOptimizing) setIsOptimizing(true);
+      if (meCtx.hasResults) {
+        setHasResults(true);
+        setResultsData(meCtx.resultsData || []);
+        setOptimizationMetadata(meCtx.optimizationMetadata || null);
+      }
+      if (meCtx.optimizationError) setOptimizationError(meCtx.optimizationError);
+    }
+
+    // --- 2. Restore file / constraints from localStorage (existing logic unchanged) ---
     console.log('🔄 useEffect: Loading from localStorage');
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -185,13 +201,16 @@ const MarketEdge = () => {
 
       console.log("[MarketEdge DEBUG] localStorage Spend:", saved.resultsData);
 
-      // Safety: never restore results if there is no uploaded file name
-      setHasResults(!!saved.hasResults && !!saved.uploadedFileName);
-      setResultsData(saved.resultsData || []);
+      // Safety: never restore results from localStorage (excluded by design to save space)
+      // Results are restored from context above instead
+      if (!meCtx.hasResults) {
+        setHasResults(!!saved.hasResults && !!saved.uploadedFileName);
+        setResultsData(saved.resultsData || []);
+      }
     } catch (e) {
       console.error('Error loading from localStorage:', e);
     }
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
 
   useEffect(() => {
@@ -395,6 +414,8 @@ const MarketEdge = () => {
       setSelectedHistoryItem(null);
       setChannelLevelConstraints({});
       setFundsAvailable({}); // Reset funds
+      // Clear context too
+      setMarketedgeState({ isOptimizing: false, hasResults: false, resultsData: [], optimizationError: null, optimizationMetadata: null });
       console.log('✓ File cleared, funds reset to empty object');
       return;
     }
@@ -589,6 +610,8 @@ const MarketEdge = () => {
     // Reset previous errors
     setOptimizationError(null);
     setIsOptimizing(true);
+    // Sync running state to context so navigation away doesn't lose the spinner
+    setMarketedgeState({ isOptimizing: true, hasResults: false, optimizationError: null });
 
     try {
       // STORE CONSTRAINTS BEFORE API CALL TO PRESERVE THEM
@@ -681,6 +704,14 @@ const MarketEdge = () => {
       setHasResults(true);
       setViewMode('current');
       setSelectedHistoryItem(null);
+      // Persist results to context so they survive navigation
+      setMarketedgeState({
+        isOptimizing: false,
+        hasResults: true,
+        resultsData: mergedResults,
+        optimizationMetadata: transformed.metadata,
+        optimizationError: null,
+      });
 
 
       console.log('Optimization completed successfully:', transformed.metadata);
@@ -707,6 +738,7 @@ const MarketEdge = () => {
       setHasResults(false);
       setResultsData([]);
       setOptimizationMetadata(null);
+      setMarketedgeState({ isOptimizing: false, hasResults: false, optimizationError: error.message || 'Optimization failed' });
     } finally {
       setIsOptimizing(false);
     }
@@ -765,6 +797,8 @@ const MarketEdge = () => {
     // Clear optimization metadata and errors
     setOptimizationMetadata(null);
     setOptimizationError(null);
+    // Clear context so navigating back shows blank state
+    setMarketedgeState({ isOptimizing: false, hasResults: false, resultsData: [], optimizationError: null, optimizationMetadata: null });
   };
 
 

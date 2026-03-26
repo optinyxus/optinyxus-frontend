@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useAppState } from '../../context/AppStateContext';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../../components/common/Navbar';
 import PriceGenixSidebar from '../../components/sidebars/PriceGenixSidebar';
@@ -124,6 +125,8 @@ const REQUIRED_PORTFOLIO_FIELD_CONFIG = [
 
 const PriceGenix = () => {
   const navigate = useNavigate();
+  const { pricegenix: pgCtx, setPricegenixState } = useAppState();
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [uploadedFile, setUploadedFile] = useState(null);
   const [uploadedPreviewRows, setUploadedPreviewRows] = useState([]);
@@ -163,6 +166,7 @@ const PriceGenix = () => {
       const article = r?.article ?? r?.articleNo ?? r?.Article ?? r?.ARTICLE;
       if (!article) return;
 
+
       const stockMin = r?.stockMinPercent ?? r?.StockMinPercent ?? r?.stockMin ?? r?.StockMin;
       const stockMax = r?.stockMaxPercent ?? r?.StockMaxPercent ?? r?.stockMax ?? r?.StockMax;
       const discountMin = r?.discountMinPercent ?? r?.DiscountMinPercent ?? r?.discountMin ?? r?.DiscountMin;
@@ -179,6 +183,19 @@ const PriceGenix = () => {
   };
 
   useEffect(() => {
+    // --- 1. Restore runtime state from in-memory context (survives navigation) ---
+    if (pgCtx.isOptimizing || pgCtx.hasResults) {
+      if (pgCtx.isOptimizing) setIsOptimizing(true);
+      if (pgCtx.hasResults) {
+        setHasResults(true);
+        setResultsData(pgCtx.resultsData || []);
+        setOptimizationSummary(pgCtx.optimizationSummary || null);
+        setPortfolioTotals(pgCtx.portfolioTotals || []);
+      }
+      if (pgCtx.optimizationError) setOptimizationError(pgCtx.optimizationError);
+    }
+
+    // --- 2. Restore file / constraints from localStorage (existing logic unchanged) ---
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
@@ -191,8 +208,11 @@ const PriceGenix = () => {
         setArticleLevelConstraints(saved?.articleLevelConstraints || {});
         setConstraints(saved?.constraints || []);
         setSelectedOptimization(savedObjective);
-        setResultsData(saved?.resultsData || []);
-        setHasResults(Boolean(saved?.hasResults && saved?.uploadedFileName));
+        // Only use localStorage results if context did NOT already provide them
+        if (!pgCtx.hasResults) {
+          setResultsData(saved?.resultsData || []);
+          setHasResults(Boolean(saved?.hasResults && saved?.uploadedFileName));
+        }
         return;
       }
 
@@ -209,7 +229,7 @@ const PriceGenix = () => {
     } catch (e) {
       // ignore
     }
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     try {
@@ -262,6 +282,8 @@ const PriceGenix = () => {
       localStorage.removeItem('pricegenix_uploadedFileName');
       localStorage.removeItem('pricegenix_uploadedPreviewRows');
       localStorage.removeItem('pricegenix_articleLevelConstraints');
+      // Clear context so navigating back shows blank state
+      setPricegenixState({ isOptimizing: false, hasResults: false, resultsData: [], optimizationError: null, optimizationSummary: null, portfolioTotals: [] });
       return;
     }
 
@@ -310,6 +332,8 @@ const PriceGenix = () => {
     setOptimizationSummary(null);
     setPortfolioTotals([]);
     setIsOptimizing(true);
+    // Sync running state to context so navigation away doesn't lose the spinner
+    setPricegenixState({ isOptimizing: true, hasResults: false, optimizationError: null, optimizationSummary: null, portfolioTotals: [] });
 
     try {
       const initialRows = uploadedPreviewRows.map((r) => ({
@@ -363,18 +387,29 @@ const PriceGenix = () => {
       }
 
       const updatedRows = transformPriceGenixResponse(result.data, initialRows);
-      setResultsData(updatedRows);
-      setHasResults(true);
-      setViewMode('current');
-      setSelectedHistoryItem(null);
-      setOptimizationSummary({
+      const summary = {
         status: result.data.status || 'success',
         optimization_time: result.data.optimization_time ?? null,
         total_iterations: result.data.total_iterations ?? null,
         valid_solutions: result.data.valid_solutions ?? null,
         pass_rate: result.data.pass_rate ?? null
+      };
+      const totals = extractPortfolioTotalsFromResponse(result.data);
+      setResultsData(updatedRows);
+      setHasResults(true);
+      setViewMode('current');
+      setSelectedHistoryItem(null);
+      setOptimizationSummary(summary);
+      setPortfolioTotals(totals);
+      // Persist results to context so they survive navigation
+      setPricegenixState({
+        isOptimizing: false,
+        hasResults: true,
+        resultsData: updatedRows,
+        optimizationSummary: summary,
+        portfolioTotals: totals,
+        optimizationError: null,
       });
-      setPortfolioTotals(extractPortfolioTotalsFromResponse(result.data));
     } catch (err) {
       const strictErrorMessage = 'No solution found. Constraints are too strict.';
       const backendValidation = err?.validationMessage || err?.backendMessage || err?.message || '';
@@ -385,6 +420,7 @@ const PriceGenix = () => {
       );
       setOptimizationSummary(null);
       setPortfolioTotals([]);
+      setPricegenixState({ isOptimizing: false, hasResults: false, optimizationError: strictErrorMessage });
     } finally {
       setIsOptimizing(false);
     }
@@ -408,6 +444,8 @@ const PriceGenix = () => {
     setHideArticleLevelConstraints(false);
     setStockConstraintsEnabled(true);
     setDiscountConstraintsEnabled(true);
+    // Clear context so navigating back shows blank state
+    setPricegenixState({ isOptimizing: false, hasResults: false, resultsData: [], optimizationError: null, optimizationSummary: null, portfolioTotals: [] });
   };
 
   const handleViewHistory = (iteration) => {
