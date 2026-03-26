@@ -1024,10 +1024,16 @@ const EngageSync = () => {
 
           {/* ── Decision Segment Action Agenda ───────────────────── */}
           {(multiSelectMode || matrixMode) && showDecisionAgenda && (
-            <div className="w-full mt-24 mb-8">
-              {/* Header row */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
-                <h2 className="text-base sm:text-lg font-bold text-primary-text">Decision Segment Action Agenda</h2>
+            <div className="bg-card-bg rounded-lg shadow-premium-md border border-border-gray w-full overflow-hidden">
+
+              {/* Card header — sky-blue accent to match Decision Framework button */}
+              <div
+                className="px-4 sm:px-5 py-3 sm:py-4 border-b border-blue-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
+                style={{ background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)' }}
+              >
+                <div className="flex items-center gap-2.5">
+                  <h2 className="text-base sm:text-lg font-bold text-primary-text">Decision Segment Action Agenda</h2>
+                </div>
                 <button
                   type="button"
                   onClick={() => alert('PriceGenix Customer Portfolio — coming soon!')}
@@ -1039,8 +1045,8 @@ const EngageSync = () => {
                 </button>
               </div>
 
-              {/* Table card — overflow-x-auto keeps it scrollable on mobile */}
-              <div className="bg-card-bg rounded-lg shadow-premium-md border border-border-gray w-full overflow-x-auto">
+              {/* Table — overflow-x-auto keeps it scrollable on mobile */}
+              <div className="overflow-x-auto">
                 <table className="w-full text-xs border-collapse" style={{ minWidth: 520 }}>
                   <thead>
                     {/* "Strategic Action" spanning L1/L2/L3 */}
@@ -1104,8 +1110,10 @@ const EngageSync = () => {
                   </tbody>
                 </table>
               </div>
+
             </div>
           )}
+
 
         </div>
       </div>
