@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Navbar from '../../components/common/Navbar';
 import EngageSyncSidebar from '../../components/sidebars/EngageSyncSidebar';
 import { X, Users, Zap, ChevronRight, Tag, Activity, RefreshCcw, Heart, LayoutGrid, DollarSign } from 'lucide-react';
+import { getDecileInfo } from './decileData';
 
 // ─── Segment arrays per schema (for 2x2 Matrix, same data as Multi-Select) ────
 const SCHEMA_SEGMENTS = {
@@ -194,35 +195,35 @@ const MatrixPanel = ({ ySchemaId, xSchemaId, showDecisionBtn, onDecisionClick })
 
 // ─── Multi-Select Matrix Data ───────────────────────────────────────────────
 const RFM_SEGMENTS = [
-  { id: 'rfm_prime', label: 'Prime', score: 3, count: 3000 },
-  { id: 'rfm_active', label: 'Active', score: 2, count: 5000 },
-  { id: 'rfm_fading', label: 'Fading', score: 1, count: 2000 },
+  { id: 'rfm_prime', label: 'Prime', score: 3, count: 3000, decileLabel: 'Prime' },
+  { id: 'rfm_active', label: 'Active', score: 2, count: 5000, decileLabel: 'Active' },
+  { id: 'rfm_fading', label: 'Fading', score: 1, count: 2000, decileLabel: 'Fading' },
 ];
 
 const LOYALTY_SEGMENTS = [
-  { id: 'lo_evan', label: 'Evangelist', score: 5, count: 2000 },
-  { id: 'lo_brand', label: 'Brand Loyalist', score: 3, count: 3000 },
-  { id: 'lo_trans', label: 'Transactional', score: 2, count: 2000 },
-  { id: 'lo_neut', label: 'Neutral Customer', score: 1, count: 3000 },
+  { id: 'lo_evan', label: 'Evangelist', score: 5, count: 2000, decileLabel: 'Evangelist' },
+  { id: 'lo_brand', label: 'Brand Loyalist', score: 3, count: 3000, decileLabel: 'Brand Loyalist' },
+  { id: 'lo_trans', label: 'Transactional', score: 2, count: 2000, decileLabel: 'Transactional' },
+  { id: 'lo_neut', label: 'Neutral Customer', score: 1, count: 3000, decileLabel: 'Neutral Customer (Non-Sticky)' },
 ];
 
 const BEHAVIOUR_SEGMENTS = [
-  { id: 'bh_deal', label: 'Deal Hunters', score: 8, count: 2500 },
-  { id: 'bh_prem', label: 'Premium Seekers', score: 21, count: 1000 },
-  { id: 'bh_var', label: 'Variety Explorers', score: 3, count: 1500 },
-  { id: 'bh_quick', label: 'Quick Buyers', score: 13, count: 2500 },
-  { id: 'bh_res', label: 'Researchers', score: 1, count: 500 },
-  { id: 'bh_conv', label: 'Convenience Seekers', score: 5, count: 1500 },
-  { id: 'bh_need', label: 'Need Driven', score: 2, count: 500 },
+  { id: 'bh_deal', label: 'Deal Hunters', score: 8, count: 2500, decileLabel: 'Deal Hunters' },
+  { id: 'bh_prem', label: 'Premium Seekers', score: 21, count: 1000, decileLabel: 'Premium Seekers' },
+  { id: 'bh_var', label: 'Variety Explorers', score: 3, count: 1500, decileLabel: 'Variety Explorers' },
+  { id: 'bh_quick', label: 'Quick Buyers', score: 13, count: 2500, decileLabel: 'Quick Buyers (Impulsive)' },
+  { id: 'bh_res', label: 'Researchers', score: 1, count: 500, decileLabel: 'Researchers' },
+  { id: 'bh_conv', label: 'Convenience Seekers', score: 5, count: 1500, decileLabel: 'Convenience Seekers' },
+  { id: 'bh_need', label: 'Need Driven', score: 2, count: 500, decileLabel: 'Need Driven (Occasional)' },
 ];
 
 const LIFECYCLE_SEGMENTS = [
-  { id: 'lc_prosp', label: 'Prospect', score: 2, count: 1000 },
-  { id: 'lc_new', label: 'New Customers', score: 5, count: 500 },
-  { id: 'lc_grow', label: 'Growing', score: 8, count: 2500 },
-  { id: 'lc_mat', label: 'Mature', score: 13, count: 3000 },
-  { id: 'lc_risk', label: 'At-Risk', score: 3, count: 1000 },
-  { id: 'lc_dorm', label: 'Dormant', score: 1, count: 2000 },
+  { id: 'lc_prosp', label: 'Prospect', score: 2, count: 1000, decileLabel: 'Prospect (Browsers, Visitors)' },
+  { id: 'lc_new', label: 'New Customers', score: 5, count: 500, decileLabel: 'New Customers' },
+  { id: 'lc_grow', label: 'Growing', score: 8, count: 2500, decileLabel: 'Growing (Early Active)' },
+  { id: 'lc_mat', label: 'Mature', score: 13, count: 3000, decileLabel: 'Mature Customers' },
+  { id: 'lc_risk', label: 'At-Risk', score: 3, count: 1000, decileLabel: 'At-Risk (Declining)' },
+  { id: 'lc_dorm', label: 'Dormant', score: 1, count: 2000, decileLabel: 'Dormant (Churned)' },
 ];
 
 const getCellValue = (rfmScore, loyaltyScore, behaviourScore, lifecycleScore) =>
@@ -858,7 +859,7 @@ const EngageSync = () => {
                     <tbody>
                       {LOYALTY_SEGMENTS.map((lo, loIdx) => {
                         const rowTotal = BEHAVIOUR_SEGMENTS.reduce(
-                          (sum, bh) => sum + getCellValue(selectedRfm.score, lo.score, bh.score, selectedLifecycle.score),
+                          (sum, bh) => sum + getDecileInfo(selectedRfm.decileLabel, lo.decileLabel, bh.decileLabel, selectedLifecycle.decileLabel).population,
                           0
                         );
                         return (
@@ -879,22 +880,28 @@ const EngageSync = () => {
                               <span className="text-[9px] font-normal text-rose-500">({lo.count.toLocaleString()})</span>
                             </td>
                             {BEHAVIOUR_SEGMENTS.map(bh => {
-                              const val = getCellValue(selectedRfm.score, lo.score, bh.score, selectedLifecycle.score);
-                              const intensity = Math.min(255, Math.round((val / 1000) * 255));
-                              const dsStr = `DS${(val % 10) + 1}`;
+                              const { population: val, decile } = getDecileInfo(
+                                selectedRfm.decileLabel,
+                                lo.decileLabel,
+                                bh.decileLabel,
+                                selectedLifecycle.decileLabel
+                              );
+                              // Convert 'D1'…'D10' → 'DS1'…'DS10'
+                              const dsStr = decile ? `DS${decile.slice(1)}` : '';
+                              const maxPop = 440; // approximate max population in dataset for colour scaling
                               return (
                                 <td
                                   key={bh.id}
                                   className="border border-gray-300 text-center py-2 px-2 font-medium transition-colors relative"
                                   style={{
                                     backgroundColor: val > 0
-                                      ? `rgba(99,102,241,${0.05 + (val / 1000) * 0.35})`
+                                      ? `rgba(99,102,241,${0.05 + (val / maxPop) * 0.35})`
                                       : '#f9fafb',
-                                    color: val > 600 ? '#3730a3' : '#374151',
+                                    color: val > (maxPop * 0.6) ? '#3730a3' : '#374151',
                                   }}
                                 >
-                                  <div className="font-bold">{val.toLocaleString()}</div>
-                                  <div className="text-[10px] font-semibold opacity-60 mt-0.5">{dsStr}</div>
+                                  <div className="font-bold">{val > 0 ? val.toLocaleString() : '—'}</div>
+                                  {dsStr && <div className="text-[10px] font-semibold opacity-60 mt-0.5">{dsStr}</div>}
                                 </td>
                               );
                             })}
@@ -909,7 +916,7 @@ const EngageSync = () => {
                         <td className="border border-gray-300 bg-gray-100 text-gray-700 font-bold text-center py-2 px-3" colSpan={1}>Total</td>
                         {BEHAVIOUR_SEGMENTS.map(bh => {
                           const colTotal = LOYALTY_SEGMENTS.reduce(
-                            (sum, lo) => sum + getCellValue(selectedRfm.score, lo.score, bh.score, selectedLifecycle.score),
+                            (sum, lo) => sum + getDecileInfo(selectedRfm.decileLabel, lo.decileLabel, bh.decileLabel, selectedLifecycle.decileLabel).population,
                             0
                           );
                           return (
@@ -921,7 +928,7 @@ const EngageSync = () => {
                         <td className="border border-gray-300 bg-gray-200 text-center font-bold text-gray-900 py-2 px-3">
                           {LOYALTY_SEGMENTS.reduce((sum, lo) =>
                             sum + BEHAVIOUR_SEGMENTS.reduce((s2, bh) =>
-                              s2 + getCellValue(selectedRfm.score, lo.score, bh.score, selectedLifecycle.score), 0), 0
+                              s2 + getDecileInfo(selectedRfm.decileLabel, lo.decileLabel, bh.decileLabel, selectedLifecycle.decileLabel).population, 0), 0
                           ).toLocaleString()}
                         </td>
                       </tr>
