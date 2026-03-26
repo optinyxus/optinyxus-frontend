@@ -145,11 +145,10 @@ const MatrixPanel = ({ ySchemaId, xSchemaId, showDecisionBtn, onDecisionClick })
                     {/* Data cells */}
                     {xSegs.map(x => {
                       const val = cell(y, x);
-                      const dsStr = `DS${(val % 10) + 1}`;
                       return (
                         <td
                           key={x.id}
-                          className="border border-gray-300 text-center py-2 px-2 font-medium transition-colors relative"
+                          className="border border-gray-300 text-center py-2 px-2 font-bold transition-colors"
                           style={{
                             backgroundColor: val > 0
                               ? `rgba(99,102,241,${0.05 + (val / 1000) * 0.35})`
@@ -157,8 +156,7 @@ const MatrixPanel = ({ ySchemaId, xSchemaId, showDecisionBtn, onDecisionClick })
                             color: val > 600 ? '#3730a3' : '#374151',
                           }}
                         >
-                          <div className="font-bold">{val.toLocaleString()}</div>
-                          <div className="text-[10px] font-semibold opacity-60 mt-0.5">{dsStr}</div>
+                          {val.toLocaleString()}
                         </td>
                       );
                     })}
@@ -1073,11 +1071,11 @@ const EngageSync = () => {
                       { ds: 'Decision Segment 10', action: 'Low-Cost Engagement', l1: 'Content', l2: '', l3: '' },
                     ].map((row, idx) => {
                       const theme = row.action.startsWith('Retain')
-                        ? { rowBg: '#f0fdf4', dsAccent: '#10b981', dsBg: '#d1fae5', dsText: '#064e3b', actionBg: '#a7f3d0', actionText: '#047857', pill: '#f0fdf4', pillBorder: '#6ee7b7', pillText: '#047857' }
+                        ? { rowBg: '#faf5ff', dsAccent: '#8b5cf6', dsBg: '#f5f0ff', dsText: '#5b21b6', actionBg: '#ede9fe', actionText: '#6d28d9', pill: '#f5f3ff', pillBorder: '#ddd6fe', pillText: '#5b21b6' }
                         : row.action.startsWith('Basket')
-                          ? { rowBg: '#fffbf0', dsAccent: '#f59e0b', dsBg: '#fef9ee', dsText: '#92400e', actionBg: '#fef3c7', actionText: '#b45309', pill: '#fffbeb', pillBorder: '#fde68a', pillText: '#92400e' }
+                          ? { rowBg: '#f0fdf4', dsAccent: '#10b981', dsBg: '#d1fae5', dsText: '#064e3b', actionBg: '#a7f3d0', actionText: '#047857', pill: '#f0fdf4', pillBorder: '#6ee7b7', pillText: '#047857' }
                           : row.action.startsWith('Nudge')
-                            ? { rowBg: '#faf5ff', dsAccent: '#8b5cf6', dsBg: '#f5f0ff', dsText: '#5b21b6', actionBg: '#ede9fe', actionText: '#6d28d9', pill: '#f5f3ff', pillBorder: '#ddd6fe', pillText: '#5b21b6' }
+                            ? { rowBg: '#fffbf0', dsAccent: '#f59e0b', dsBg: '#fef9ee', dsText: '#92400e', actionBg: '#fef3c7', actionText: '#b45309', pill: '#fffbeb', pillBorder: '#fde68a', pillText: '#92400e' }
                             : { rowBg: '#fff1f2', dsAccent: '#f43f5e', dsBg: '#ffe4e6', dsText: '#9f1239', actionBg: '#fecdd3', actionText: '#e11d48', pill: '#fff1f2', pillBorder: '#fecdd3', pillText: '#9f1239' };
 
                       const Pill = ({ val }) => val
